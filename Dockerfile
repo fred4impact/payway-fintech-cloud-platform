@@ -61,8 +61,16 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
+# The base image's system Python ships old setuptools/wheel (flagged by Trivy).
+# The app runs from /opt/venv, so remove them from the runtime image.
+RUN /usr/local/bin/python -m pip uninstall -y setuptools wheel
+
 # Copy virtual environment from builder stage
 COPY --from=builder /opt/venv /opt/venv
+
+# No package manager at runtime: pip isn't needed to run the app, and its bundled
+# SBOM (vendored setuptools 70.3.0 pkg_resources) trips the image scanner.
+RUN /opt/venv/bin/python -m pip uninstall -y pip
 
 # Create non-root user for security
 RUN groupadd --gid 1000 appuser && \
