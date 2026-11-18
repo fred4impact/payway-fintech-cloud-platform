@@ -1,0 +1,66 @@
+<aside class="offcanvas-lg offcanvas-start pw-sidebar" tabindex="-1" id="pwSidebar" aria-label="Main navigation">
+    <div class="pw-sidebar-inner">
+        <div class="d-flex align-items-center justify-content-between">
+            <a class="pw-sidebar-brand" href="{% url 'core:dashboard' %}">
+                <span class="pw-logo pw-logo-lg"><i class="fas fa-wallet"></i></span>
+                <span>
+                    <span class="d-block pw-sidebar-title">PayWay</span>
+                    <span class="d-block pw-sidebar-sub">Personal account</span>
+                </span>
+            </a>
+            <button type="button" class="btn-close d-lg-none" data-bs-dismiss="offcanvas" data-bs-target="#pwSidebar" aria-label="Close menu"></button>
+        </div>
+
+        <nav class="pw-side-nav">
+            <a href="{% url 'core:dashboard' %}" class="{% if nav_section == 'overview' %}active{% endif %}"><i class="fas fa-table-cells-large"></i>Overview</a>
+            <a href="{% url 'account:transactions' %}" class="{% if nav_section == 'transactions' %}active{% endif %}"><i class="fas fa-arrow-right-arrow-left"></i>Transactions</a>
+            <a href="{% url 'account:money_transfer' %}" class="{% if nav_section == 'send' %}active{% endif %}"><i class="fas fa-paper-plane"></i>Send money</a>
+            <a href="{% url 'account:payment_requests' %}" class="{% if nav_section == 'requests' %}active{% endif %}"><i class="fas fa-hand-holding-dollar"></i>Requests</a>
+            <a href="{% url 'account:international_transfers' %}" class="{% if nav_section == 'international' %}active{% endif %}"><i class="fas fa-earth-europe"></i>International</a>
+            <a href="{% url 'account:credit_cards' %}" class="{% if nav_section == 'cards' %}active{% endif %}"><i class="fas fa-credit-card"></i>Cards</a>
+
+            <div class="pw-side-label">Account</div>
+            <a href="{% url 'account:kyc' %}" class="{% if nav_section == 'kyc' %}active{% endif %}"><i class="fas fa-id-card"></i>Verification
+                {% if shell_kyc_status != 'approved' %}<span class="pw-side-pill warn">{% if shell_kyc_status %}{{ shell_kyc_status|capfirst }}{% else %}To do{% endif %}</span>{% endif %}
+            </a>
+            <a href="{% url 'userauths:security_dashboard' %}" class="{% if nav_section == 'security' %}active{% endif %}"><i class="fas fa-shield-halved"></i>Security</a>
+            <a href="{% url 'account:notifications' %}" class="{% if nav_section == 'notifications' %}active{% endif %}"><i class="fas fa-bell"></i>Notifications
+                {% if unread_notifications_count > 0 %}<span class="pw-side-pill">{{ unread_notifications_count }}</span>{% endif %}
+            </a>
+            <a href="{% url 'account:account_info' %}" class="{% if nav_section == 'profile' %}active{% endif %}"><i class="fas fa-gear"></i>Settings</a>
+        </nav>
+
+        <div class="pw-sidebar-foot">
+            <div class="dropup">
+                <button class="pw-user-card" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span class="pw-avatar pw-avatar-lg">{{ user.first_name|default:user.username|slice:":1" }}</span>
+                    <span class="text-start flex-grow-1 overflow-hidden">
+                        <span class="d-block pw-user-name text-truncate">{% if user.get_full_name %}{{ user.get_full_name }}{% else %}{{ user.username }}{% endif %}</span>
+                        <span class="d-block pw-user-sub text-truncate">{{ user.email }}</span>
+                    </span>
+                    <i class="fas fa-chevron-up pw-user-caret"></i>
+                </button>
+                <ul class="dropdown-menu w-100">
+                    <li><a class="dropdown-item" href="{% url 'account:account_info' %}"><i class="fas fa-circle-user me-2"></i>Profile</a></li>
+                    <li><a class="dropdown-item" href="{% url 'userauths:security_dashboard' %}"><i class="fas fa-shield-halved me-2"></i>Security</a></li>
+                    <li><a class="dropdown-item" href="{% url 'core:home' %}"><i class="fas fa-house me-2"></i>Website</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item text-danger" href="{% url 'userauths:logout' %}"><i class="fas fa-arrow-right-from-bracket me-2"></i>Sign out</a></li>
+                </ul>
+            </div>
+
+            <div class="pw-tip">
+                {% if shell_kyc_status != 'approved' %}
+                    <div class="pw-tip-title"><i class="fas fa-wand-magic-sparkles"></i>Pro tip</div>
+                    <p>Verify your identity to unlock higher limits and international transfers.</p>
+                    <a href="{% url 'account:kyc' %}" class="btn btn-light btn-sm">Verify now</a>
+                {% else %}
+                    <div class="pw-tip-title"><i class="fas fa-wand-magic-sparkles"></i>Pro tip</div>
+                    <p>Send money abroad with upfront fees and live exchange rates.</p>
+                    <a href="{% url 'account:create_international_transfer' %}" class="btn btn-light btn-sm">Send abroad</a>
+                {% endif %}
+                <svg class="pw-tip-art" viewBox="0 0 120 60" aria-hidden="true"><path d="M2 48 C 20 48, 24 14, 42 22 S 62 54, 80 30 S 104 6, 118 12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+            </div>
+        </div>
+    </div>
+</aside>

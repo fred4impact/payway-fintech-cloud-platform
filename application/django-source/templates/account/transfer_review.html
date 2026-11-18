@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% load pw_forms humanize %}
+{% block title %}Review transfer — PayWay{% endblock %}
+
+{% block content %}
+<div class="container-xl px-3 px-lg-4 pw-page">
+    <div class="pw-flow-head">
+        <div>
+            <h1>Review your transfer</h1>
+            <p>Check the details. Money moves only when you confirm.</p>
+        </div>
+    </div>
+    <div class="pw-flow is-narrow">
+        <div class="pw-flow-main">
+            {% pw_stepper "Recipient|Amount|Review|Done" 3 %}
+            <div class="pw-flow-card">
+                <div class="pw-review-amount">
+                    <div class="k">You're sending</div>
+                    <div class="v">${{ amount|floatformat:2|intcomma }}</div>
+                    <div class="to"><span class="pw-avatar">{{ receiver_account.user.first_name|default:receiver_account.user.username|slice:":1" }}</span>{{ receiver_account.user.get_full_name|default:receiver_account.user.username }}</div>
+                </div>
+                <dl class="pw-review">
+                    <div><dt>Recipient account</dt><dd class="pw-mono">{{ receiver_account.account_number }}</dd></div>
+                    <div><dt>Recipient email</dt><dd>{{ receiver_account.user.email }}</dd></div>
+                    <div><dt>Amount</dt><dd>${{ amount|floatformat:2|intcomma }}</dd></div>
+                    <div><dt>Transfer fee</dt><dd>${{ fee|floatformat:2|intcomma }}</dd></div>
+                    {% if form.cleaned_data.description %}<div><dt>Note</dt><dd>{{ form.cleaned_data.description }}</dd></div>{% endif %}
+                    {% if form.cleaned_data.reference %}<div><dt>Reference</dt><dd>{{ form.cleaned_data.reference }}</dd></div>{% endif %}
+                    <div><dt>Balance after</dt><dd>${{ balance_after|floatformat:2|intcomma }}</dd></div>
+                    <div class="is-total"><dt>Total debited</dt><dd>${{ total|floatformat:2|intcomma }}</dd></div>
+                </dl>
+                <div class="pw-note"><i class="fas fa-bolt"></i><span>Transfers between PayWay accounts arrive instantly and can't be reversed once sent.</span></div>
+
+                <div class="pw-flow-actions">
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="stage" value="edit">
+                        {% for f in form %}{{ f.as_hidden }}{% endfor %}
+                        <button type="submit" class="btn btn-outline-secondary btn-lg"><i class="fas fa-pen me-2"></i>Edit</button>
+                    </form>
+                    <span class="pw-spacer"></span>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="stage" value="confirm">
+                        {% for f in form %}{{ f.as_hidden }}{% endfor %}
+                        <button type="submit" class="btn btn-success btn-lg"><i class="fas fa-lock me-2"></i>Send ${{ total|floatformat:2|intcomma }}</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

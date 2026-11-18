@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% load pw_forms %}
+{% block title %}Security settings — PayWay{% endblock %}
+{% block content %}
+<div class="container-xl px-3 px-lg-4 pw-page">
+    <div class="pw-flow-head">
+        <div>
+            <a href="{% url 'userauths:security_dashboard' %}" class="pw-back-link"><i class="fas fa-arrow-left"></i>Security</a>
+            <h1>Security settings</h1>
+            <p>Choose your protection level or change your password.</p>
+        </div>
+    </div>
+    <div class="pw-flow">
+        <div class="pw-flow-main">
+            <form method="post" class="pw-flow-card" novalidate>
+                {% csrf_token %}
+                {% include 'partials/_form_errors.html' %}
+                <div class="pw-step-head"><h2 class="pw-step-title">Protection level</h2><p class="pw-step-sub">Higher levels add more checks on unusual sign-ins.</p></div>
+                <div class="pw-fields">{% pw_field form.security_level label="Security level" %}</div>
+
+                <div class="pw-step-head mt-4 pt-4 border-top"><h2 class="pw-step-title">Change password</h2><p class="pw-step-sub">Leave blank to keep your current password. You'll be signed out after changing it.</p></div>
+                <div class="pw-fields">
+                    {% for f in form %}{% if f.name != 'security_level' %}
+                    <div class="pw-field">
+                        <label class="form-label" for="{{ f.id_for_label }}">{{ f.label }}</label>
+                        <div class="pw-pass-wrap">
+                            <input type="password" name="{{ f.html_name }}" id="{{ f.id_for_label }}" class="form-control form-control-lg {% if f.errors %}is-invalid{% endif %}" autocomplete="{% if f.name == 'current_password' %}current-password{% else %}new-password{% endif %}">
+                            <button type="button" data-pw-reveal="{{ f.id_for_label }}" aria-label="Show password"><i class="far fa-eye"></i></button>
+                        </div>
+                        {% if f.name == 'new_password' %}<div class="pw-strength" data-pw-strength="{{ f.id_for_label }}"><div class="pw-strength-bars"><span></span><span></span><span></span></div><span data-pw-strength-label>8+ characters</span></div>{% endif %}
+                        {% if f.errors %}<div class="invalid-feedback d-block">{% for e in f.errors %}<span class="d-block">{{ e }}</span>{% endfor %}</div>{% endif %}
+                    </div>
+                    {% endif %}{% endfor %}
+                </div>
+                <div class="pw-flow-actions">
+                    <a href="{% url 'userauths:security_dashboard' %}" class="btn btn-outline-secondary btn-lg">Cancel</a>
+                    <span class="pw-spacer"></span>
+                    <button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-check me-2"></i>Save settings</button>
+                </div>
+            </form>
+        </div>
+        <aside class="pw-flow-aside">
+            <div class="pw-panel pw-summary always">
+                <div class="pw-summary-title">More protection</div>
+                <div class="pw-option-grid">
+                    <a class="pw-option" href="{% url 'userauths:two_factor_setup' %}"><span class="pw-tile pw-tile-sm tone-brand"><i class="fas fa-key"></i></span><span><span class="t d-block">Two-factor authentication</span><span class="s d-block">Codes from your phone at sign-in</span></span></a>
+                    <a class="pw-option" href="{% url 'userauths:device_management' %}"><span class="pw-tile pw-tile-sm tone-blue"><i class="fas fa-laptop"></i></span><span><span class="t d-block">Devices</span><span class="s d-block">Review where you're signed in</span></span></a>
+                    <a class="pw-option" href="{% url 'userauths:security_logs' %}"><span class="pw-tile pw-tile-sm tone-violet"><i class="fas fa-list"></i></span><span><span class="t d-block">Security log</span><span class="s d-block">Every sign-in and change</span></span></a>
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% load pw_forms humanize %}
+{% block title %}Account — PayWay{% endblock %}
+
+{% block content %}
+<div class="container-xl px-3 px-lg-4 pw-page">
+    <!-- profile header -->
+    <div class="pw-flow-head">
+        <div class="d-flex align-items-center gap-3 min-w-0">
+            {% if user.profile_picture %}
+                <img src="{{ user.profile_picture.url }}" alt="" class="rounded-circle flex-shrink-0" width="64" height="64" style="object-fit:cover;border:1px solid var(--pw-border)">
+            {% else %}
+                <span class="pw-avatar flex-shrink-0" style="width:64px;height:64px;font-size:1.5rem">{{ user.first_name|default:user.username|slice:":1" }}</span>
+            {% endif %}
+            <div class="min-w-0">
+                <h1 class="pw-page-title text-truncate">{{ user.get_full_name|default:user.username }}</h1>
+                <p class="pw-page-sub text-truncate">{{ user.email }} · Member since {{ user.date_joined|date:"M Y" }}</p>
+            </div>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'account:money_transfer' %}" class="btn btn-ink-green btn-pill btn-lg"><i class="fas fa-plus me-2"></i>Send money</a>
+            <a href="{% url 'account:create_payment_request' %}" class="btn btn-outline-secondary btn-pill btn-lg">Request</a>
+        </div>
+    </div>
+
+    <div class="pw-bento-grid">
+        <!-- stats -->
+        <div class="pw-stat-card is-hero pw-span-3">
+            <div class="t">Balance <a href="{% url 'account:transactions' %}" class="pw-arrow" aria-label="Transactions"><i class="fas fa-arrow-right"></i></a></div>
+            <div class="n" style="font-size: clamp(1.75rem,3.2vw,2.5rem)">${{ account.account_balance|floatformat:2|intcomma }}</div>
+            <div class="f"><span class="chip">USD</span>{{ account.get_account_type_display }} account</div>
+        </div>
+        <div class="pw-stat-card pw-span-3">
+            <div class="t">Sent <a href="{% url 'account:transactions' %}" class="pw-arrow" aria-label="Sent payments"><i class="fas fa-arrow-right"></i></a></div>
+            <div class="n">{{ sent_count }}</div>
+            <div class="f is-muted">${{ sent_total|floatformat:2|intcomma }} in total</div>
+        </div>
+        <div class="pw-stat-card pw-span-3">
+            <div class="t">Received <a href="{% url 'account:transactions' %}" class="pw-arrow" aria-label="Received payments"><i class="fas fa-arrow-right"></i></a></div>
+            <div class="n">{{ received_count }}</div>
+            <div class="f">${{ received_total|floatformat:2|intcomma }} in total</div>
+        </div>
+        <div class="pw-stat-card pw-span-3">
+            <div class="t">Linked cards <a href="{% url 'account:credit_cards' %}" class="pw-arrow" aria-label="Cards"><i class="fas fa-arrow-right"></i></a></div>
+            <div class="n">{{ cards_count }}</div>
+            <div class="f {% if not cards_count %}is-muted{% endif %}">{% if cards_count %}Ready for top-ups{% else %}Link a card to top up{% endif %}</div>
+        </div>
+
+        <!-- account card -->
+        <section class="pw-dark-card pw-span-5 d-flex flex-column">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="k">PayWay {{ account.get_account_type_display }}</div>
+                <span class="pw-tag {% if account.is_active %}done{% else %}pending{% endif %}" style="background:rgba(255,255,255,.1);color:#bbf7d0;border-color:rgba(187,247,208,.35)">{% if account.is_active %}Active{% else %}Inactive{% endif %}</span>
+            </div>
+            <div class="small mt-4" style="color:rgba(255,255,255,.65)">Account number</div>
+            <div class="d-flex align-items-center gap-2">
+                <div class="v my-1 pw-mono" style="font-size: clamp(1.5rem,3.4vw,2.25rem); letter-spacing:.08em" id="pwAcctNo">{{ account.account_number }}</div>
+                <button type="button" class="pw-round-btn light" style="width:36px;height:36px;font-size:.8rem" data-pw-copy="pwAcctNo" aria-label="Copy account number"><i class="far fa-copy"></i></button>
+            </div>
+            <div class="d-flex flex-wrap gap-4 mt-auto pt-3 small" style="color:rgba(255,255,255,.75)">
+                <div>Holder<div class="text-white fw-medium">{{ user.get_full_name|default:user.username }}</div></div>
+                <div>Opened<div class="text-white fw-medium">{{ account.created_at|date:"M d, Y" }}</div></div>
+                <div>Currency<div class="text-white fw-medium">USD</div></div>
+            </div>
+        </section>
+
+        <!-- profile -->
+        <section class="pw-panel pw-span-4">
+            <div class="pw-panel-head"><h2 class="pw-panel-title fs-5">Profile</h2><a href="{% url 'userauths:security_settings' %}" class="btn btn-outline-secondary btn-pill btn-sm">Security</a></div>
+            <dl class="pw-review">
+                <div><dt>Email</dt><dd>{{ user.email }}</dd></div>
+                <div><dt>Phone</dt><dd>{{ user.phone_number|default:"—" }}</dd></div>
+                <div><dt>Date of birth</dt><dd>{{ user.date_of_birth|date:"M d, Y"|default:"—" }}</dd></div>
+                <div><dt>Verification</dt><dd>
+                    {% if kyc %}<a href="{% url 'account:kyc_detail' %}" class="pw-tag {% if kyc.verification_status == 'approved' %}done{% elif kyc.verification_status == 'rejected' %}failed{% else %}progress{% endif %}">{{ kyc.get_verification_status_display }}</a>
+                    {% else %}<a href="{% url 'account:kyc' %}" class="pw-tag pending">Not started</a>{% endif %}
+                </dd></div>
+                <div><dt>Two-factor</dt><dd><span class="pw-tag {% if twofa and twofa.is_enabled %}done{% else %}neutral{% endif %}">{% if twofa and twofa.is_enabled %}On{% else %}Off{% endif %}</span></dd></div>
+            </dl>
+        </section>
+
+        <!-- quick actions -->
+        <section class="pw-panel pw-span-3">
+            <h2 class="pw-panel-title fs-5 mb-1">Quick actions</h2>
+            <div class="pw-list">
+                <a class="pw-list-item" href="{% url 'account:money_transfer' %}"><span class="pw-list-icon tone-brand"><i class="fas fa-paper-plane"></i></span><div class="pw-list-body"><div class="pw-list-t">Send money</div><div class="pw-list-s">To any PayWay account</div></div></a>
+                <a class="pw-list-item" href="{% url 'account:payment_requests' %}"><span class="pw-list-icon tone-violet"><i class="fas fa-hand-holding-dollar"></i></span><div class="pw-list-body"><div class="pw-list-t">Requests</div><div class="pw-list-s">{{ pending_requests }} waiting for you</div></div></a>
+                <a class="pw-list-item" href="{% url 'account:card_funding' %}"><span class="pw-list-icon tone-blue"><i class="fas fa-credit-card"></i></span><div class="pw-list-body"><div class="pw-list-t">Add money</div><div class="pw-list-s">Top up from a card</div></div></a>
+                <a class="pw-list-item" href="{% url 'core:dashboard' %}?export=csv"><span class="pw-list-icon tone-amber"><i class="fas fa-download"></i></span><div class="pw-list-body"><div class="pw-list-t">Statement</div><div class="pw-list-s">Last 30 days, CSV</div></div></a>
+            </div>
+        </section>
+
+        <!-- recent activity -->
+        <section class="pw-panel pw-span-8">
+            <div class="pw-panel-head"><h2 class="pw-panel-title fs-5">Recent activity</h2><a href="{% url 'account:transactions' %}" class="btn btn-outline-secondary btn-pill btn-sm">View all</a></div>
+            <div class="pw-list">
+                {% for r in recent %}
+                <a class="pw-list-item" href="{% url 'account:transaction_detail' r.tx.transaction_id %}">
+                    <span class="pw-list-icon {% if r.incoming %}tone-brand{% else %}tone-amber{% endif %}"><i class="fas {% if r.incoming %}fa-arrow-down{% else %}fa-arrow-up{% endif %}"></i></span>
+                    <div class="pw-list-body">
+                        <div class="pw-list-t">{{ r.name }}</div>
+                        <div class="pw-list-s">{{ r.tx.get_transaction_type_display }} · {{ r.tx.created_at|date:"M d, H:i" }}</div>
+                    </div>
+                    <span class="pw-num fw-semibold {% if r.incoming %}text-success{% else %}text-dark{% endif %} me-2">{% if r.incoming %}+{% else %}−{% endif %}${{ r.tx.amount|floatformat:2|intcomma }}</span>
+                    <span class="pw-tag d-none d-sm-inline {% if r.tx.status == 'completed' %}done{% elif r.tx.status == 'pending' %}progress{% else %}pending{% endif %}">{{ r.tx.get_status_display }}</span>
+                </a>
+                {% empty %}
+                <p class="pw-muted-note mt-0">No transactions yet. <a href="{% url 'account:money_transfer' %}">Send your first payment</a></p>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- profile completeness -->
+        <section class="pw-panel pw-span-4">
+            <h2 class="pw-panel-title fs-5 mb-2">Profile strength</h2>
+            {% pw_gauge profile_pct 0 profile_pending value=profile_value caption="Complete" uid="acct" %}
+            <div class="pw-list mt-2">
+                {% for c in checks %}
+                <div class="pw-list-item py-1">
+                    <span class="pw-list-icon {% if c.done %}tone-brand{% else %}pw-hatch{% endif %}" style="width:24px;height:24px;border-radius:999px;font-size:.6rem">{% if c.done %}<i class="fas fa-check"></i>{% endif %}</span>
+                    <div class="pw-list-body"><div class="pw-list-t fs-6 fw-normal">{{ c.label }}</div></div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}

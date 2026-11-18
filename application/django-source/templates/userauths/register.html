@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% load pw_forms %}
+{% block title %}Create your account — PayWay{% endblock %}
+
+{% block content %}
+<div class="pw-auth">
+    <aside class="pw-auth-panel">
+        <div>
+            <h2 class="mb-3">Open an account in under three minutes.</h2>
+            <p class="mb-0">No monthly fees, no paperwork. Your account number is ready the moment you sign up.</p>
+            <ul class="pw-auth-list">
+                <li><i class="fas fa-bolt"></i>Instant transfers between PayWay accounts</li>
+                <li><i class="fas fa-hand-holding-dollar"></i>Request and settle payments in one tap</li>
+                <li><i class="fas fa-shield-halved"></i>KYC, 2FA and fraud monitoring built in</li>
+            </ul>
+        </div>
+        <p class="small mb-0"><i class="fas fa-lock me-2"></i>Protected by 256-bit TLS encryption</p>
+    </aside>
+
+    <div class="pw-auth-form">
+        <div class="pw-auth-card" style="max-width: 460px;">
+            <h1>Create your account</h1>
+            <p class="text-muted mb-4">Already have an account? <a href="{% url 'userauths:login' %}" class="fw-medium">Sign in</a></p>
+
+            {% pw_stepper "Account|Profile|Security" 1 flow=True %}
+
+            <form method="post" data-pw-flow novalidate>
+                {% csrf_token %}
+                {% include 'partials/_form_errors.html' %}
+
+                <section class="pw-step">
+                    <div class="pw-fields">
+                        {% pw_field form.email label="Email" hint="We'll use this to sign you in." %}
+                        {% pw_field form.username label="Username" %}
+                    </div>
+                </section>
+
+                <section class="pw-step" hidden>
+                    <div class="pw-fields">
+                        <div class="pw-fields-2">
+                            {% pw_field form.first_name label="First name" %}
+                            {% pw_field form.last_name label="Last name" %}
+                        </div>
+                        {% pw_field form.phone_number label="Phone number" %}
+                        {% pw_field form.date_of_birth label="Date of birth" %}
+                    </div>
+                </section>
+
+                <section class="pw-step" hidden>
+                    <div class="pw-fields">
+                        <div class="pw-field">
+                            <label class="form-label" for="{{ form.password1.id_for_label }}">Password</label>
+                            <div class="pw-pass-wrap">
+                                <input type="password" name="{{ form.password1.html_name }}" id="{{ form.password1.id_for_label }}" class="form-control form-control-lg {% if form.password1.errors %}is-invalid{% endif %}" autocomplete="new-password" minlength="8" required>
+                                <button type="button" data-pw-reveal="{{ form.password1.id_for_label }}" aria-label="Show password"><i class="far fa-eye"></i></button>
+                            </div>
+                            <div class="pw-strength" data-pw-strength="{{ form.password1.id_for_label }}"><div class="pw-strength-bars"><span></span><span></span><span></span></div><span data-pw-strength-label>8+ characters</span></div>
+                            {% if form.password1.errors %}<div class="invalid-feedback d-block">{% for e in form.password1.errors %}<span class="d-block">{{ e }}</span>{% endfor %}</div>{% endif %}
+                        </div>
+                        <div class="pw-field">
+                            <label class="form-label" for="{{ form.password2.id_for_label }}">Confirm password</label>
+                            <div class="pw-pass-wrap">
+                                <input type="password" name="{{ form.password2.html_name }}" id="{{ form.password2.id_for_label }}" class="form-control form-control-lg {% if form.password2.errors %}is-invalid{% endif %}" autocomplete="new-password" required>
+                                <button type="button" data-pw-reveal="{{ form.password2.id_for_label }}" aria-label="Show password"><i class="far fa-eye"></i></button>
+                            </div>
+                            {% if form.password2.errors %}<div class="invalid-feedback d-block">{% for e in form.password2.errors %}<span class="d-block">{{ e }}</span>{% endfor %}</div>{% endif %}
+                        </div>
+                        <div class="pw-field-check">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="acceptTerms" required>
+                                <label class="form-check-label small" for="acceptTerms">I agree to the <a href="#">Terms</a> and <a href="#">Privacy Policy</a></label>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="pw-flow-actions">
+                    <button type="button" class="btn btn-outline-secondary btn-lg" data-pw-back hidden><i class="fas fa-arrow-left me-2"></i>Back</button>
+                    <span class="pw-spacer"></span>
+                    <button type="button" class="btn btn-primary btn-lg" data-pw-next>Continue<i class="fas fa-arrow-right ms-2"></i></button>
+                    <button type="submit" class="btn btn-primary btn-lg" data-pw-submit hidden>Create account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -44,7 +44,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH" \
     DJANGO_SETTINGS_MODULE=payway.settings \
-    PYTHONPATH="/app"
+    PYTHONPATH="/app/application/django-source"
 
 # Install runtime system dependencies
 RUN apt-get update && apt-get install -y \
@@ -83,6 +83,9 @@ USER appuser
 
 # Collect static files
 RUN python manage.py collectstatic --noinput --settings=payway.settings
+
+# Entrypoint runs migrations when RUN_MIGRATIONS=1, then execs CMD
+ENTRYPOINT ["/app/docker/entrypoint.sh"]
 
 # Expose port
 EXPOSE 8000

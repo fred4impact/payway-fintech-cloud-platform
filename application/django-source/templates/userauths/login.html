@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% block title %}Sign in — PayWay{% endblock %}
+
+{% block content %}
+<div class="pw-auth">
+    <aside class="pw-auth-panel">
+        <div>
+            <h2 class="mb-3">Welcome back to calmer money.</h2>
+            <p class="mb-0">Pick up right where you left off: balances, transfers and requests, all in one place.</p>
+            <ul class="pw-auth-list">
+                <li><i class="fas fa-bolt"></i>Transfers that settle in seconds</li>
+                <li><i class="fas fa-shield-halved"></i>Two-factor authentication &amp; device control</li>
+                <li><i class="fas fa-globe"></i>Send money to 40+ countries</li>
+            </ul>
+        </div>
+        <p class="small mb-0"><i class="fas fa-lock me-2"></i>Protected by 256-bit TLS encryption</p>
+    </aside>
+
+    <div class="pw-auth-form">
+        <div class="pw-auth-card">
+            <h1>Sign in</h1>
+            <p class="text-muted mb-4">New to PayWay? <a href="{% url 'userauths:register' %}" class="fw-medium">Create an account</a></p>
+
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger d-flex gap-2" role="alert">
+                    <i class="fas fa-circle-exclamation mt-1"></i>
+                    <div>{% for error in form.non_field_errors %}{{ error }}{% endfor %}</div>
+                </div>
+            {% endif %}
+
+            <form method="post" novalidate>
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="{{ form.email.id_for_label }}" class="form-label">Email</label>
+                    <input type="email" class="form-control form-control-lg {% if form.email.errors %}is-invalid{% endif %}"
+                           id="{{ form.email.id_for_label }}" name="{{ form.email.name }}"
+                           value="{{ form.email.value|default_if_none:'' }}"
+                           placeholder="you@company.com" autocomplete="email" required autofocus>
+                    {% if form.email.errors %}<div class="invalid-feedback d-block">Please enter a valid email address.</div>{% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <label for="{{ form.password.id_for_label }}" class="form-label">Password</label>
+                        <a href="#" class="small mb-1">Forgot password?</a>
+                    </div>
+                    <div class="pw-pass">
+                        <input type="password" class="form-control form-control-lg {% if form.password.errors %}is-invalid{% endif %}"
+                               id="{{ form.password.id_for_label }}" name="{{ form.password.name }}"
+                               placeholder="••••••••" autocomplete="current-password" required>
+                        <button type="button" id="togglePassword" aria-label="Show password"><i class="far fa-eye"></i></button>
+                    </div>
+                    {% if form.password.errors %}<div class="invalid-feedback d-block">Please enter a valid password.</div>{% endif %}
+                </div>
+
+                <div class="form-check mb-4">
+                    <input class="form-check-input" type="checkbox" id="rememberMe">
+                    <label class="form-check-label small text-muted" for="rememberMe">Keep me signed in for 30 days</label>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-lg w-100">Sign in</button>
+            </form>
+
+            <div class="pw-divider">or</div>
+
+            <button type="button" class="btn btn-outline-secondary btn-lg w-100">
+                <i class="fab fa-google me-2"></i>Continue with Google
+            </button>
+
+            <p class="small text-muted text-center mt-4 mb-0">
+                By continuing you agree to PayWay's <a href="#" class="text-muted text-decoration-underline">Terms</a> and
+                <a href="#" class="text-muted text-decoration-underline">Privacy Policy</a>.
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const btn = document.getElementById('togglePassword');
+    const field = document.getElementById('{{ form.password.id_for_label }}');
+    if (btn && field) {
+        btn.addEventListener('click', function () {
+            const show = field.type === 'password';
+            field.type = show ? 'text' : 'password';
+            this.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+            const icon = this.querySelector('i');
+            icon.classList.toggle('fa-eye', !show);
+            icon.classList.toggle('fa-eye-slash', show);
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% load pw_forms humanize %}
+{% block title %}Pay request — PayWay{% endblock %}
+
+{% block content %}
+<div class="container-xl px-3 px-lg-4 pw-page">
+    <div class="pw-flow-head">
+        <div>
+            <a href="{% url 'account:payment_requests' %}" class="pw-back-link"><i class="fas fa-arrow-left"></i>Requests</a>
+            <h1>Pay this request</h1>
+            <p>Review the request below. Money moves only when you confirm.</p>
+        </div>
+    </div>
+    <div class="pw-flow is-narrow">
+        <div class="pw-flow-main">
+            {% pw_stepper "Review|Pay|Done" 1 %}
+            <div class="pw-flow-card">
+                <div class="pw-review-amount">
+                    <div class="k">{{ payment_request.requester.get_full_name|default:payment_request.requester.username }} is requesting</div>
+                    <div class="v">${{ payment_request.amount|floatformat:2|intcomma }}</div>
+                    <div class="to"><span class="request-id-badge">{{ payment_request.request_id }}</span></div>
+                </div>
+                <dl class="pw-review">
+                    <div><dt>Pay to</dt><dd>{{ payment_request.requester.get_full_name|default:payment_request.requester.username }}</dd></div>
+                    <div><dt>Their account</dt><dd class="pw-mono">{{ payment_request.requester_account.account_number }}</dd></div>
+                    {% if payment_request.description %}<div><dt>For</dt><dd>{{ payment_request.description }}</dd></div>{% endif %}
+                    <div><dt>Requested</dt><dd>{{ payment_request.created_at|date:"M d, Y" }}</dd></div>
+                    {% if payment_request.expires_at %}<div><dt>Expires</dt><dd>{{ payment_request.expires_at|date:"M d, Y · H:i" }}</dd></div>{% endif %}
+                    <div><dt>Your balance</dt><dd>${{ account.account_balance|floatformat:2|intcomma }}</dd></div>
+                    <div><dt>Balance after</dt><dd{% if not can_pay %} class="text-danger"{% endif %}>${{ balance_after|floatformat:2|intcomma }}</dd></div>
+                    <div class="is-total"><dt>You pay</dt><dd>${{ payment_request.amount|floatformat:2|intcomma }}</dd></div>
+                </dl>
+                {% if can_pay %}
+                    <div class="pw-note"><i class="fas fa-shield-halved"></i><span>Payments to PayWay accounts are instant and can't be reversed.</span></div>
+                {% else %}
+                    <div class="pw-note warn"><i class="fas fa-triangle-exclamation"></i><span>You don't have enough money for this request. <a href="{% url 'account:card_funding' %}">Top up from a card</a> first.</span></div>
+                {% endif %}
+                <div class="pw-flow-actions">
+                    <a href="{% url 'account:payment_requests' %}" class="btn btn-outline-secondary btn-lg">Not now</a>
+                    <span class="pw-spacer"></span>
+                    <form method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success btn-lg" {% if not can_pay %}disabled{% endif %}><i class="fas fa-lock me-2"></i>Pay ${{ payment_request.amount|floatformat:2|intcomma }}</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

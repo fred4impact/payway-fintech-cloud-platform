@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% load pw_forms humanize %}
+{% block title %}Review international transfer — PayWay{% endblock %}
+{% block content %}
+<div class="container-xl px-3 px-lg-4 pw-page">
+    <div class="pw-flow-head"><div><h1>Review your transfer</h1><p>The exchange rate is locked when you confirm.</p></div></div>
+    <div class="pw-flow is-narrow">
+        <div class="pw-flow-main">
+            {% pw_stepper "Bank|Recipient|Amount|Review|Done" 4 %}
+            <div class="pw-flow-card">
+                <div class="pw-review-amount">
+                    <div class="k">{{ form.cleaned_data.recipient_name }} receives</div>
+                    <div class="v">{{ currency.symbol }}{{ amount|floatformat:2|intcomma }} <small class="fs-6 text-muted">{{ currency.code }}</small></div>
+                    <div class="to"><i class="fas fa-building-columns"></i>{{ bank.bank_name }} · {{ form.cleaned_data.recipient_country }}</div>
+                </div>
+                <dl class="pw-review">
+                    <div><dt>Bank</dt><dd>{{ bank.bank_name }}</dd></div>
+                    <div><dt>SWIFT / BIC</dt><dd class="pw-mono">{{ bank.swift_code }}</dd></div>
+                    <div><dt>Account</dt><dd class="pw-mono">{{ form.cleaned_data.recipient_account_number }}</dd></div>
+                    <div><dt>City</dt><dd>{{ form.cleaned_data.recipient_city }}, {{ form.cleaned_data.recipient_country }}</dd></div>
+                    {% if form.cleaned_data.description %}<div><dt>Reference</dt><dd>{{ form.cleaned_data.description }}</dd></div>{% endif %}
+                    <div><dt>Exchange rate</dt><dd>1 {{ currency.code }} = ${{ usd_per_unit|floatformat:4 }}</dd></div>
+                    <div><dt>Amount in USD</dt><dd>${{ amount_usd|floatformat:2|intcomma }}</dd></div>
+                    <div><dt>Transfer fee</dt><dd>{{ currency.symbol }}{{ fee|floatformat:2|intcomma }} (${{ fee_usd|floatformat:2|intcomma }})</dd></div>
+                    <div><dt>Estimated arrival</dt><dd>{{ eta|date:"D, M d" }}</dd></div>
+                    <div><dt>Balance after</dt><dd>${{ balance_after|floatformat:2|intcomma }}</dd></div>
+                    <div class="is-total"><dt>Total debited</dt><dd>${{ debit_usd|floatformat:2|intcomma }}</dd></div>
+                </dl>
+                <div class="pw-note"><i class="fas fa-shield-halved"></i><span>Double-check the account number. International transfers can't be recalled once the bank processes them.</span></div>
+                <div class="pw-flow-actions">
+                    <form method="post">{% csrf_token %}<input type="hidden" name="stage" value="edit">{% for f in form %}{{ f.as_hidden }}{% endfor %}
+                        <button type="submit" class="btn btn-outline-secondary btn-lg"><i class="fas fa-pen me-2"></i>Edit</button></form>
+                    <span class="pw-spacer"></span>
+                    <form method="post">{% csrf_token %}<input type="hidden" name="stage" value="confirm">{% for f in form %}{{ f.as_hidden }}{% endfor %}
+                        <button type="submit" class="btn btn-success btn-lg"><i class="fas fa-lock me-2"></i>Send ${{ debit_usd|floatformat:2|intcomma }}</button></form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

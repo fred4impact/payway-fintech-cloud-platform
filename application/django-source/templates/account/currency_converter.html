@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+{% load pw_forms humanize %}
+{% block title %}Currency converter — PayWay{% endblock %}
+
+{% block content %}
+{% with r=conversion_result %}
+<div class="container-xl px-3 px-lg-4 pw-page">
+    <div class="pw-flow-head">
+        <div>
+            <h1 class="pw-page-title">Currency converter</h1>
+            <p class="pw-page-sub">Check what your money is worth abroad before you send it.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'account:create_international_transfer' %}" class="btn btn-ink-green btn-pill btn-lg"><i class="fas fa-plus me-2"></i>Send abroad</a>
+            <a href="{% url 'account:transfer_fee_calculator' %}" class="btn btn-outline-secondary btn-pill btn-lg">Fee calculator</a>
+        </div>
+    </div>
+
+    {% if not currencies %}
+        <div class="pw-note warn mb-4"><i class="fas fa-triangle-exclamation"></i><span>No currencies are loaded. An admin can run <code>python manage.py populate_international_data</code>.</span></div>
+    {% endif %}
+
+    <div class="pw-bento-grid">
+        <!-- stat row -->
+        <div class="pw-stat-card is-hero pw-span-3">
+            <div class="t">They receive <a href="{% url 'account:create_international_transfer' %}" class="pw-arrow" aria-label="Send this amount"><i class="fas fa-arrow-right"></i></a></div>
+            <div class="n">{% if r %}{{ r.to_currency.symbol }}{{ r.converted_amount|floatformat:2|intcomma }}{% else %}—{% endif %}</div>
+            <div class="f">{% if r %}<span class="chip">{{ r.to_currency.code }}</span>{{ r.to_currency.name }}{% else %}Enter an amount to convert{% endif %}</div>
+        </div>
+        <div class="pw-stat-card pw-span-3">
+            <div class="t">You send <span class="pw-arrow" aria-hidden="true"><i class="fas fa-arrow-right"></i></span></div>
+            <div class="n">{% if r %}{{ r.from_currency.symbol }}{{ r.original_amount|floatformat:2|intcomma }}{% else %}—{% endif %}</div>
+            <div class="f">{% if r %}<span class="chip">{{ r.from_currency.code }}</span>{{ r.from_currency.name }}{% else %}&nbsp;{% endif %}</div>
+        </div>
+        <div class="pw-stat-card pw-span-3">
+            <div class="t">Exchange rate <span class="pw-arrow" aria-hidden="true"><i class="fas fa-arrow-right"></i></span></div>
+            <div class="n" style="font-size: clamp(1.75rem,3.2vw,2.5rem)">{% if r %}{{ r.exchange_rate|floatformat:4 }}{% else %}—{% endif %}</div>
+            <div class="f is-muted">{% if r %}1 {{ r.from_currency.code }} = {{ r.exchange_rate|floatformat:4 }} {{ r.to_currency.code }}{% else %}Per unit sent{% endif %}</div>
+        </div>
+        <div class="pw-stat-card pw-span-3">
+            <div class="t">Inverse rate <span class="pw-arrow" aria-hidden="true"><i class="fas fa-arrow-right"></i></span></div>
+            <div class="n" style="font-size: clamp(1.75rem,3.2vw,2.5rem)">{% if r %}{{ r.inverse_rate|floatformat:4 }}{% else %}—{% endif %}</div>
+            <div class="f is-muted">{% if r %}1 {{ r.to_currency.code }} = {{ r.inverse_rate|floatformat:4 }} {{ r.from_currency.code }}{% else %}Per unit received{% endif %}</div>
+        </div>
+
+        <!-- converter -->
+        <section class="pw-panel pw-span-7">
+            <div class="pw-panel-head"><h2 class="pw-panel-title fs-5">Convert</h2><span class="pw-select-chip">Reference rates</span></div>
+            <form method="get" id="fxForm" novalidate>
+                {% if form.non_field_errors %}{% include 'partials/_form_errors.html' %}{% endif %}
+                <div class="pw-amount mb-3">{% pw_field form.amount label="Amount" hint="" %}</div>
+                <div class="pw-fx-row">
+                    {% pw_field form.from_currency label="From" hint="" %}
+                    <button type="button" class="pw-fx-swap" id="fxSwap" aria-label="Swap currencies"><i class="fas fa-right-left"></i></button>
+                    {% pw_field form.to_currency label="To" hint="" %}
+                </div>
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-4">
+                    <button type="submit" class="btn btn-ink-green btn-pill btn-lg"><i class="fas fa-arrow-right-arrow-left me-2"></i>Convert</button>
+                    <span class="text-muted small ms-1">Rates are indicative. Your exact rate is locked when you send.</span>
+                </div>
+            </form>
+            {% if pairs %}
+            <div class="mt-4 pt-3 border-top">
+                <div class="pw-summary-title mb-2">Popular pairs</div>
+                <div class="d-flex flex-wrap gap-2">
+                    {% for a, b in pairs %}
+                    <a class="pw-pair {% if r and r.from_currency.code == a and r.to_currency.code == b %}is-active{% endif %}" href="?from_currency={{ a }}&to_currency={{ b }}&amount={{ amount_value|urlencode }}">{{ a }} <i class="fas fa-arrow-right" style="font-size:.6rem"></i> {{ b }}</a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </section>
+
+        <!-- rate list -->
+        <section class="pw-panel pw-span-5">
+            <div class="pw-panel-head"><h2 class="pw-panel-title fs-5">Rates vs USD</h2><span class="pw-select-chip">1 USD buys</span></div>
+            <div class="pw-list">
+                {% for b in bars %}
+                <a class="pw-list-item" href="?from_currency=USD&to_currency={{ b.c.code }}&amount={{ amount_value|urlencode }}">
+                    <span class="pw-flag" style="background: {% cycle '#1f4d33' '#2563eb' '#d97706' '#7c3aed' '#0d9488' '#dc2626' '#3f7f57' '#0f172a' '#db2777' '#65a30d' %}">{{ b.c.code }}</span>
+                    <div class="pw-list-body">
+                        <div class="pw-list-t">{{ b.c.name }}</div>
+                        <div class="pw-list-s">1 {{ b.c.code }} = ${{ b.usd_value|floatformat:4 }}</div>
+                    </div>
+                    <span class="pw-num fw-semibold text-dark">{{ b.c.symbol }}{{ b.c.exchange_rate_to_usd|floatformat:4 }}</span>
+                </a>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- strength bars -->
+        <section class="pw-panel pw-span-12">
+            <div class="pw-panel-head">
+                <div>
+                    <h2 class="pw-panel-title fs-5">Units per US dollar</h2>
+                    <div class="pw-legend mt-2"><span><i style="background:#1f4d33"></i>Selected pair</span><span><i class="pw-hatch" style="border-width:1px"></i>Other currencies</span></div>
+                </div>
+                <span class="pw-select-chip">Log scale</span>
+            </div>
+            <div class="pw-fx-bars">
+                {% for b in bars %}
+                <a class="pw-week-col" href="?from_currency={% if r %}{{ r.from_currency.code }}{% else %}USD{% endif %}&to_currency={{ b.c.code }}&amount={{ amount_value|urlencode }}" title="1 USD = {{ b.c.exchange_rate_to_usd|floatformat:4 }} {{ b.c.code }}">
+                    <div class="pw-week-bar {% if b.selected %}{% if r and b.c.code == r.to_currency.code %}is-dark{% else %}is-mid{% endif %}{% else %}pw-hatch{% endif %}" style="height: {{ b.height }}%">
+                        {% if b.selected %}<span class="pw-week-tip">{{ b.c.exchange_rate_to_usd|floatformat:2 }}</span>{% endif %}
+                    </div>
+                    <span class="pw-week-label">{{ b.c.code }}</span>
+                </a>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+</div>
+{% endwith %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const form = document.getElementById('fxForm');
+    const swap = document.getElementById('fxSwap');
+    if (!form || !swap) return;
+    swap.addEventListener('click', () => {
+        const a = form.querySelector('[name=from_currency]'), b = form.querySelector('[name=to_currency]');
+        [a.value, b.value] = [b.value, a.value];
+        if (form.amount.value) form.requestSubmit();
+    });
+    // convert as soon as a currency changes
+    form.querySelectorAll('select').forEach(s => s.addEventListener('change', () => { if (form.amount.value) form.requestSubmit(); }));
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% load pw_forms humanize %}
+{% block title %}International transfer — PayWay{% endblock %}
+
+{% block content %}
+<div class="container-xl px-3 px-lg-4 pw-page">
+    <div class="pw-flow-head">
+        <div>
+            <a href="{% url 'account:international_transfers' %}" class="pw-back-link"><i class="fas fa-arrow-left"></i>International</a>
+            <h1>Send money abroad</h1>
+            <p>Upfront fees and a locked exchange rate. Arrives in 1–3 business days.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'account:transfer_fee_calculator' %}" class="btn btn-outline-secondary"><i class="fas fa-calculator me-2"></i>Fees</a>
+            <a href="{% url 'account:currency_converter' %}" class="btn btn-outline-secondary"><i class="fas fa-right-left me-2"></i>Rates</a>
+        </div>
+    </div>
+
+    {% if not currencies %}
+        <div class="pw-note warn mb-4"><i class="fas fa-triangle-exclamation"></i><span>International transfers aren't configured yet: no currencies or banks are loaded. An admin can run <code>python manage.py populate_international_data</code>.</span></div>
+    {% endif %}
+
+    <div class="pw-flow">
+        <div class="pw-flow-main">
+            {% pw_stepper "Bank|Recipient|Amount|Review|Done" 1 flow=True %}
+            <form method="post" class="pw-flow-card" data-pw-flow novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="stage" value="details">
+                {% include 'partials/_form_errors.html' %}
+
+                <section class="pw-step">
+                    <div class="pw-step-head">
+                        <div class="pw-step-count">Step 1</div>
+                        <h2 class="pw-step-title">Recipient's bank</h2>
+                        <p class="pw-step-sub">We use the SWIFT/BIC code to route your money.</p>
+                    </div>
+                    <div class="pw-fields">
+                        {% pw_field form.swift_code label="SWIFT / BIC code" %}
+                        <a href="{% url 'account:swift_code_search' %}" class="small" target="_blank" rel="noopener"><i class="fas fa-magnifying-glass me-1"></i>Look up a SWIFT code</a>
+                    </div>
+                </section>
+
+                <section class="pw-step" hidden>
+                    <div class="pw-step-head">
+                        <div class="pw-step-count">Step 2</div>
+                        <h2 class="pw-step-title">Who's receiving it?</h2>
+                        <p class="pw-step-sub">Use the name exactly as it appears on their bank account.</p>
+                    </div>
+                    <div class="pw-fields">
+                        {% pw_field form.recipient_name label="Full name" %}
+                        {% pw_field form.recipient_account_number label="Account number / IBAN" %}
+                        <div class="pw-fields-2">
+                            {% pw_field form.recipient_country label="Country" %}
+                            {% pw_field form.recipient_city label="City" %}
+                        </div>
+                    </div>
+                </section>
+
+                <section class="pw-step" hidden>
+                    <div class="pw-step-head">
+                        <div class="pw-step-count">Step 3</div>
+                        <h2 class="pw-step-title">How much should they receive?</h2>
+                        <p class="pw-step-sub">You'll see the fee and exact USD debit before confirming.</p>
+                    </div>
+                    <div class="pw-fields">
+                        <div class="pw-fields-2">
+                            <div class="pw-amount">{% pw_field form.amount hint="" %}</div>
+                            {% pw_field form.currency label="Currency" %}
+                        </div>
+                        {% pw_field form.description label="Payment reference" %}
+                    </div>
+                </section>
+
+                <div class="pw-flow-actions">
+                    <button type="button" class="btn btn-outline-secondary btn-lg" data-pw-back hidden><i class="fas fa-arrow-left me-2"></i>Back</button>
+                    <span class="pw-spacer"></span>
+                    <span data-pw-count></span>
+                    <button type="button" class="btn btn-primary btn-lg" data-pw-next>Continue<i class="fas fa-arrow-right ms-2"></i></button>
+                    <button type="submit" class="btn btn-primary btn-lg" data-pw-submit hidden>Review transfer<i class="fas fa-arrow-right ms-2"></i></button>
+                </div>
+            </form>
+        </div>
+        <aside class="pw-flow-aside">
+            <div class="pw-balance-chip">
+                <div><div class="k">Available balance</div><div class="v">${{ account.account_balance|floatformat:2|intcomma }}</div></div>
+                <span class="acct">USD</span>
+            </div>
+            <div class="pw-panel pw-summary">
+                <div class="pw-summary-title">Summary</div>
+                <dl>
+                    <div><dt>SWIFT</dt><dd data-pw-bind="swift_code" class="pw-mono"></dd></div>
+                    <div><dt>Recipient</dt><dd data-pw-bind="recipient_name"></dd></div>
+                    <div><dt>Account</dt><dd data-pw-bind="recipient_account_number" class="pw-mono"></dd></div>
+                    <div><dt>Country</dt><dd data-pw-bind="recipient_country"></dd></div>
+                    <div><dt>Amount</dt><dd><span data-pw-bind="amount"></span> <span data-pw-bind="currency" data-pw-empty=""></span></dd></div>
+                </dl>
+            </div>
+        </aside>
+    </div>
+</div>
+{% endblock %}

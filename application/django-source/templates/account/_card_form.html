@@ -1,0 +1,92 @@
+{% load pw_forms %}
+<div class="container-xl px-3 px-lg-4 pw-page">
+    <div class="pw-flow-head">
+        <div>
+            <a href="{% if card %}{% url 'account:card_detail' card.id %}{% else %}{% url 'account:credit_cards' %}{% endif %}" class="pw-back-link"><i class="fas fa-arrow-left"></i>{% if card %}Card{% else %}Cards{% endif %}</a>
+            <h1>{% if card %}Edit card{% else %}Link a card{% endif %}</h1>
+            <p>{% if card %}Update limits and preferences, or replace the card number.{% else %}Card numbers are encrypted at rest. Only the last 4 digits are ever shown.{% endif %}</p>
+        </div>
+    </div>
+    <div class="pw-flow">
+        <div class="pw-flow-main">
+            {% pw_stepper "Card details|Limits|Saved" 1 flow=True %}
+            <form method="post" class="pw-flow-card" data-pw-flow novalidate autocomplete="off">
+                {% csrf_token %}
+                {% include 'partials/_form_errors.html' %}
+                <section class="pw-step">
+                    <div class="pw-step-head">
+                        <div class="pw-step-count">Step 1</div>
+                        <h2 class="pw-step-title">Card details</h2>
+                        <p class="pw-step-sub">Enter them exactly as printed on the card.</p>
+                    </div>
+                    <div class="pw-fields">
+                        {% pw_field form.card_holder_name label="Name on card" %}
+                        {% pw_field form.card_number label="Card number" %}
+                        <div class="pw-fields-3">
+                            {% pw_field form.expiry_month label="Expiry month" hint="" %}
+                            {% pw_field form.expiry_year label="Expiry year" hint="" %}
+                            {% pw_field form.cvv label="CVV" hint="" %}
+                        </div>
+                    </div>
+                </section>
+                <section class="pw-step" hidden>
+                    <div class="pw-step-head">
+                        <div class="pw-step-count">Step 2</div>
+                        <h2 class="pw-step-title">Limits &amp; preferences</h2>
+                        <p class="pw-step-sub">Limits cap how much you can top up from this card.</p>
+                    </div>
+                    <div class="pw-fields">
+                        <div class="pw-fields-2">
+                            {% pw_field form.daily_limit prefix="$" %}
+                            {% pw_field form.monthly_limit prefix="$" %}
+                        </div>
+                        {% pw_field form.is_default label="Make this my default card" %}
+                    </div>
+                    <div class="pw-note"><i class="fas fa-lock"></i><span>Your full card number and CVV are encrypted and never shown again.</span></div>
+                </section>
+                <div class="pw-flow-actions">
+                    <button type="button" class="btn btn-outline-secondary btn-lg" data-pw-back hidden><i class="fas fa-arrow-left me-2"></i>Back</button>
+                    <span class="pw-spacer"></span>
+                    <span data-pw-count></span>
+                    <button type="button" class="btn btn-primary btn-lg" data-pw-next>Continue<i class="fas fa-arrow-right ms-2"></i></button>
+                    <button type="submit" class="btn btn-success btn-lg" data-pw-submit hidden><i class="fas fa-check me-2"></i>{% if card %}Save changes{% else %}Link card{% endif %}</button>
+                </div>
+            </form>
+        </div>
+        <aside class="pw-flow-aside">
+            <div class="pw-card-preview" aria-hidden="true">
+                <div class="d-flex justify-content-between align-items-start">
+                    <span class="pw-card-chip"></span>
+                    <span class="pw-card-brand" id="pwCardBrand">{% if card %}{{ card.card_brand }}{% else %}Card{% endif %}</span>
+                </div>
+                <div class="pw-card-number" data-pw-bind="card_number" data-pw-format="card" data-pw-empty="{% if card %}{{ card.masked_number }}{% else %}•••• •••• •••• ••••{% endif %}"></div>
+                <div class="pw-card-meta">
+                    <div>Cardholder<strong data-pw-bind="card_holder_name" data-pw-empty="YOUR NAME"></strong></div>
+                    <div class="text-end">Expires<strong><span data-pw-bind="expiry_month" data-pw-empty="MM"></span>/<span data-pw-bind="expiry_year" data-pw-empty="YY"></span></strong></div>
+                </div>
+            </div>
+            <div class="pw-panel pw-summary">
+                <div class="pw-summary-title">Limits</div>
+                <dl>
+                    <div><dt>Daily</dt><dd data-pw-bind="daily_limit" data-pw-format="money"></dd></div>
+                    <div><dt>Monthly</dt><dd data-pw-bind="monthly_limit" data-pw-format="money"></dd></div>
+                    <div><dt>Default card</dt><dd data-pw-bind="is_default"></dd></div>
+                </dl>
+            </div>
+        </aside>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const num = document.getElementById('{{ form.card_number.id_for_label }}');
+    const brand = document.getElementById('pwCardBrand');
+    if (!num || !brand) return;
+    num.setAttribute('inputmode', 'numeric');
+    num.addEventListener('input', () => {
+        const d = num.value.replace(/\D/g, '');
+        brand.textContent = !d ? brand.dataset.initial || brand.textContent
+            : d[0] === '4' ? 'VISA' : d[0] === '5' ? 'Mastercard' : /^3[47]/.test(d) ? 'AMEX' : d[0] === '6' ? 'Discover' : 'Card';
+    });
+    brand.dataset.initial = brand.textContent;
+});
+</script>

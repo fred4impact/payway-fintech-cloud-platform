@@ -1,0 +1,31 @@
+<div class="pw-field{% if field.errors %} has-error{% endif %}{% if kind == 'check' %} pw-field-check{% endif %}">
+{% if kind == 'check' %}
+    <div class="form-check">
+        {{ widget_html }}
+        <label class="form-check-label" for="{{ field.id_for_label }}">{{ label }}</label>
+    </div>
+{% else %}
+    <label class="form-label" for="{{ field.id_for_label }}">
+        {{ label }}{% if not required and show_optional %} <span class="pw-optional">Optional</span>{% endif %}
+    </label>
+    {% if kind == 'file' %}
+        <label class="pw-dropzone" for="{{ field.id_for_label }}">
+            <i class="fas fa-cloud-arrow-up"></i>
+            <span class="pw-dropzone-text"><strong>Choose a file</strong> or drag it here</span>
+            <span class="pw-dropzone-name" data-pw-filename></span>
+            {{ widget_html }}
+        </label>
+    {% elif kind == 'choices' %}
+        <div class="pw-choices">{{ widget_html }}</div>
+    {% elif prefix %}
+        <div class="pw-input-affix"><span class="pw-affix">{{ prefix }}</span>{{ widget_html }}</div>
+    {% else %}
+        {{ widget_html }}
+    {% endif %}
+{% endif %}
+{% if field.errors %}
+    <div class="invalid-feedback d-block" role="alert">{% for e in field.errors %}<span>{{ e }}</span>{% endfor %}</div>
+{% elif hint %}
+    <div class="form-text" id="{{ field.auto_id }}_help">{{ hint }}</div>
+{% endif %}
+</div>

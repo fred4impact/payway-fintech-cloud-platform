@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+
+{% block title %}PayWay — Secure digital payments{% endblock %}
+
+{% block content %}
+<!-- Hero -->
+<section class="pw-hero">
+    <div class="container-xl px-3 px-lg-4">
+        <div class="row align-items-center g-5">
+            <div class="col-lg-6">
+                <span class="pw-eyebrow mb-4"><span class="pw-chip">New</span>International transfers to 40+ countries</span>
+                <h1 class="mb-4">Money that moves<br>at the <span class="pw-grad">speed of trust.</span></h1>
+                <p class="lead mb-4">
+                    Send, receive and manage money with bank-grade security, verified identities and real-time fraud monitoring.
+                    One account. Every payment.
+                </p>
+                <div class="d-flex flex-wrap gap-2 mb-4">
+                    {% if user.is_authenticated %}
+                        <a href="{% url 'core:dashboard' %}" class="btn btn-primary btn-lg">Go to dashboard <i class="fas fa-arrow-right ms-2" style="font-size:.75em"></i></a>
+                        <a href="{% url 'account:money_transfer' %}" class="btn btn-outline-secondary btn-lg">Send money</a>
+                    {% else %}
+                        <a href="{% url 'userauths:register' %}" class="btn btn-primary btn-lg">Open a free account <i class="fas fa-arrow-right ms-2" style="font-size:.75em"></i></a>
+                        <a href="{% url 'userauths:login' %}" class="btn btn-outline-secondary btn-lg">Sign in</a>
+                    {% endif %}
+                </div>
+                <div class="pw-trust">
+                    <span><i class="fas fa-lock"></i>256-bit encryption</span>
+                    <span><i class="fas fa-shield-halved"></i>Two-factor auth</span>
+                    <span><i class="fas fa-id-card"></i>KYC verified</span>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="position-relative mx-auto" style="max-width: 480px;">
+                    <div class="pw-mock">
+                        <div class="pw-balance mb-3">
+                            <div class="d-flex justify-content-between align-items-start mb-4 position-relative" style="z-index:1">
+                                <div>
+                                    <div class="label mb-1">Available balance</div>
+                                    <div class="amount">$24,580.<span style="opacity:.6">42</span></div>
+                                </div>
+                                <span class="pw-delta"><i class="fas fa-arrow-trend-up"></i>12.4%</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-end position-relative" style="z-index:1">
+                                <span class="acct">PW •••• 4821</span>
+                                <i class="fas fa-wifi" style="transform:rotate(90deg);opacity:.6"></i>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center px-1 mb-1">
+                            <span class="small fw-semibold text-dark">Recent activity</span>
+                            <span class="small text-muted">This week</span>
+                        </div>
+                        <div class="pw-tx">
+                            <span class="pw-icon brand"><i class="fas fa-arrow-down"></i></span>
+                            <div><div class="who">Salary — Northwind Ltd</div><div class="when">Today, 09:12</div></div>
+                            <div class="amt in">+$6,200.00</div>
+                        </div>
+                        <div class="pw-tx">
+                            <span class="pw-icon"><i class="fas fa-globe"></i></span>
+                            <div><div class="who">Transfer to EUR account</div><div class="when">Yesterday</div></div>
+                            <div class="amt">−$1,150.00</div>
+                        </div>
+                        <div class="pw-tx">
+                            <span class="pw-icon"><i class="fas fa-hand-holding-dollar"></i></span>
+                            <div><div class="who">Request from Alex M.</div><div class="when">Mon</div></div>
+                            <div class="amt">−$84.50</div>
+                        </div>
+                    </div>
+
+                    <div class="pw-float d-none d-sm-flex" style="left:-36px; bottom:-26px;">
+                        <span class="pw-icon brand" style="width:32px;height:32px"><i class="fas fa-check"></i></span>
+                        <div><strong>Payment sent</strong><span>Settled in 1.8s</span></div>
+                    </div>
+                    <div class="pw-float d-none d-sm-flex" style="right:-28px; top:-22px;">
+                        <span class="pw-icon" style="width:32px;height:32px"><i class="fas fa-shield-halved"></i></span>
+                        <div><strong>Fraud check passed</strong><span>Risk score: low</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Stats -->
+<section class="pw-stats">
+    <div class="container-xl px-3 px-lg-4">
+        <div class="row g-0 text-center text-md-start">
+            <div class="col-md-3 pw-stat"><div class="v">99.99%</div><div class="k">Platform uptime</div></div>
+            <div class="col-md-3 pw-stat"><div class="v">&lt; 2s</div><div class="k">Average settlement</div></div>
+            <div class="col-md-3 pw-stat"><div class="v">40+</div><div class="k">Countries supported</div></div>
+            <div class="col-md-3 pw-stat"><div class="v">24/7</div><div class="k">Fraud monitoring</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- Features -->
+<section class="pw-section" id="features">
+    <div class="container-xl px-3 px-lg-4">
+        <div class="mb-5 pw-reveal">
+            <div class="pw-kicker mb-2">Product</div>
+            <h2 class="pw-section-title mb-3">Everything your money needs,<br class="d-none d-md-inline"> in one calm place.</h2>
+            <p class="pw-section-sub">From everyday transfers to cross-border payments, PayWay gives you the tools of a modern bank without the friction.</p>
+        </div>
+
+        <div class="pw-bento pw-reveal">
+            <div>
+                <span class="pw-icon brand"><i class="fas fa-paper-plane"></i></span>
+                <h3>Instant transfers</h3>
+                <p>Send money to any PayWay account in seconds, using an account number or a quick search.</p>
+                <a class="more" href="{% url 'account:money_transfer' %}">Send money <i class="fas fa-arrow-right"></i></a>
+            </div>
+            <div>
+                <span class="pw-icon"><i class="fas fa-hand-holding-dollar"></i></span>
+                <h3>Payment requests</h3>
+                <p>Request money with a clean, trackable link and settle incoming requests in one tap.</p>
+                <a class="more" href="{% url 'account:create_payment_request' %}">Create request <i class="fas fa-arrow-right"></i></a>
+            </div>
+            <div>
+                <span class="pw-icon"><i class="fas fa-globe"></i></span>
+                <h3>International</h3>
+                <p>Cross-border transfers with SWIFT lookup, live currency conversion and upfront fees.</p>
+                <a class="more" href="{% url 'account:international_transfers' %}">Go global <i class="fas fa-arrow-right"></i></a>
+            </div>
+            <div>
+                <span class="pw-icon"><i class="fas fa-credit-card"></i></span>
+                <h3>Cards</h3>
+                <p>Link your cards to fund your wallet or withdraw, all managed from a single view.</p>
+                <a class="more" href="{% url 'account:credit_cards' %}">Manage cards <i class="fas fa-arrow-right"></i></a>
+            </div>
+            <div>
+                <span class="pw-icon"><i class="fas fa-chart-line"></i></span>
+                <h3>Insightful dashboard</h3>
+                <p>See balances, inflows and outflows at a glance, with complete, searchable history.</p>
+                <a class="more" href="{% url 'core:dashboard' %}">Open dashboard <i class="fas fa-arrow-right"></i></a>
+            </div>
+            <div>
+                <span class="pw-icon"><i class="fas fa-bell"></i></span>
+                <h3>Real-time alerts</h3>
+                <p>Get notified the moment money moves, a request arrives or your security settings change.</p>
+                <a class="more" href="{% url 'account:notifications' %}">Notifications <i class="fas fa-arrow-right"></i></a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Security -->
+<section class="pw-section pt-0" id="security">
+    <div class="container-xl px-3 px-lg-4">
+        <div class="row g-5 align-items-center">
+            <div class="col-lg-5 pw-reveal">
+                <div class="pw-kicker mb-2">Security</div>
+                <h2 class="pw-section-title mb-3">Built like a bank.<br>Feels like an app.</h2>
+                <p class="pw-section-sub mb-4">Security is not a feature we bolted on. Every account is protected by layered controls, from identity checks to device-level monitoring.</p>
+                <a href="{% url 'account:kyc' %}" class="btn btn-outline-secondary">Verify your identity</a>
+            </div>
+            <div class="col-lg-7">
+                <div class="row g-3 pw-reveal">
+                    <div class="col-sm-6">
+                        <div class="card h-100"><div class="card-body p-4">
+                            <span class="pw-icon brand mb-3"><i class="fas fa-key"></i></span>
+                            <h3 class="h6 mb-1">Two-factor authentication</h3>
+                            <p class="small text-muted mb-0">TOTP codes and backup codes keep your account locked to you.</p>
+                        </div></div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="card h-100"><div class="card-body p-4">
+                            <span class="pw-icon brand mb-3"><i class="fas fa-id-card"></i></span>
+                            <h3 class="h6 mb-1">Identity verification</h3>
+                            <p class="small text-muted mb-0">KYC with document and selfie checks before money can move.</p>
+                        </div></div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="card h-100"><div class="card-body p-4">
+                            <span class="pw-icon brand mb-3"><i class="fas fa-laptop"></i></span>
+                            <h3 class="h6 mb-1">Device management</h3>
+                            <p class="small text-muted mb-0">See every signed-in device and revoke access instantly.</p>
+                        </div></div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="card h-100"><div class="card-body p-4">
+                            <span class="pw-icon brand mb-3"><i class="fas fa-shield-halved"></i></span>
+                            <h3 class="h6 mb-1">Fraud monitoring</h3>
+                            <p class="small text-muted mb-0">Every transaction is risk-scored and logged for full audit trails.</p>
+                        </div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- How it works -->
+<section class="pw-section pt-0" id="how">
+    <div class="container-xl px-3 px-lg-4">
+        <div class="mb-5 pw-reveal">
+            <div class="pw-kicker mb-2">How it works</div>
+            <h2 class="pw-section-title">Up and running in minutes.</h2>
+        </div>
+        <div class="row g-4 pw-reveal">
+            <div class="col-md-4">
+                <div class="pw-mono small text-muted mb-2">01</div>
+                <h3 class="h6">Create your account</h3>
+                <p class="small text-muted mb-0">Sign up with your email. Your account number is generated on the spot.</p>
+            </div>
+            <div class="col-md-4">
+                <div class="pw-mono small text-muted mb-2">02</div>
+                <h3 class="h6">Verify your identity</h3>
+                <p class="small text-muted mb-0">Upload an ID and a selfie. Most verifications complete the same day.</p>
+            </div>
+            <div class="col-md-4">
+                <div class="pw-mono small text-muted mb-2">03</div>
+                <h3 class="h6">Start moving money</h3>
+                <p class="small text-muted mb-0">Fund with a card, then send, request or transfer worldwide.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="pb-2">
+    <div class="container-xl px-3 px-lg-4">
+        <div class="pw-cta pw-reveal">
+            <div class="row align-items-center g-4">
+                <div class="col-lg-7">
+                    <h2 class="pw-section-title mb-2">Ready when you are.</h2>
+                    <p class="mb-0">Open a PayWay account in under three minutes. No monthly fees, no paperwork.</p>
+                </div>
+                <div class="col-lg-5 d-flex flex-wrap gap-2 justify-content-lg-end">
+                    {% if user.is_authenticated %}
+                        <a href="{% url 'core:dashboard' %}" class="btn btn-light btn-lg">Go to dashboard</a>
+                    {% else %}
+                        <a href="{% url 'userauths:register' %}" class="btn btn-light btn-lg">Get started free</a>
+                        <a href="{% url 'userauths:login' %}" class="btn btn-ghost btn-lg">Sign in</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,87 @@
+{% load pw_forms humanize %}
+<div class="container-xl px-3 px-lg-4 pw-page">
+    <div class="pw-flow-head">
+        <div>
+            <a href="{% url 'account:credit_cards' %}" class="pw-back-link"><i class="fas fa-arrow-left"></i>Cards</a>
+            <h1>{% if direction == 'fund' %}Add money from a card{% else %}Withdraw to a card{% endif %}</h1>
+            <p>{% if direction == 'fund' %}Top up your PayWay balance from a linked card.{% else %}Move money from your PayWay balance to a linked card.{% endif %}</p>
+        </div>
+    </div>
+
+    {% if not cards %}
+        <div class="pw-flow is-narrow"><div class="pw-flow-card pw-danger-card">
+            <div class="pw-danger-icon" style="background:var(--pw-surface-2);color:var(--pw-text);border-color:var(--pw-border)"><i class="fas fa-credit-card"></i></div>
+            <h2 class="h5">No active cards yet</h2>
+            <p class="text-muted">Link a card first, then come back to {% if direction == 'fund' %}top up{% else %}withdraw{% endif %}.</p>
+            <a href="{% url 'account:add_credit_card' %}" class="btn btn-primary btn-lg"><i class="fas fa-plus me-2"></i>Add a card</a>
+        </div></div>
+    {% else %}
+    <div class="pw-flow">
+        <div class="pw-flow-main">
+            {% pw_stepper "Card|Amount|Review|Done" 1 flow=True %}
+            <form method="post" class="pw-flow-card" data-pw-flow novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="stage" value="details">
+                {% include 'partials/_form_errors.html' %}
+
+                <section class="pw-step">
+                    <div class="pw-step-head">
+                        <div class="pw-step-count">Step 1</div>
+                        <h2 class="pw-step-title">Choose a card</h2>
+                        <p class="pw-step-sub">{% if direction == 'fund' %}Each card has daily and monthly top-up limits.{% else %}The money arrives on this card.{% endif %}</p>
+                    </div>
+                    <div class="pw-option-grid" role="radiogroup" aria-label="Card">
+                        {% for c in cards %}
+                        <label class="pw-option">
+                            <input type="radio" name="card" value="{{ c.id }}" data-label="{{ c.card_brand }} •••• {{ c.last_four_digits }}" required
+                                   {% if form.card.value|stringformat:"s" == c.id|stringformat:"s" or cards|length == 1 %}checked{% endif %}>
+                            <span class="pw-tile pw-tile-sm tone-blue"><i class="fas fa-credit-card"></i></span>
+                            <span class="flex-grow-1">
+                                <span class="t d-block">{{ c.card_brand }} •••• {{ c.last_four_digits }}{% if c.is_default %} <span class="pw-optional">Default</span>{% endif %}</span>
+                                <span class="s d-block">{{ c.card_holder_name }} · Exp {{ c.expiry_month|stringformat:"02d" }}/{{ c.expiry_year }}{% if direction == 'fund' %} · Limit ${{ c.daily_limit|floatformat:0|intcomma }}/day{% endif %}</span>
+                            </span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    {% if form.card.errors %}<div class="invalid-feedback d-block mt-2">{{ form.card.errors.0 }}</div>{% endif %}
+                    <a href="{% url 'account:add_credit_card' %}" class="small d-inline-block mt-3"><i class="fas fa-plus me-1"></i>Link another card</a>
+                </section>
+
+                <section class="pw-step" hidden>
+                    <div class="pw-step-head">
+                        <div class="pw-step-count">Step 2</div>
+                        <h2 class="pw-step-title">How much?</h2>
+                        <p class="pw-step-sub">{% if direction == 'fund' %}No fees for card top-ups.{% else %}You can withdraw up to your available balance.{% endif %}</p>
+                    </div>
+                    <div class="pw-fields">
+                        <div class="pw-amount">{% pw_field form.amount prefix="$" hint="" %}</div>
+                        {% pw_field form.description label="Note" hint="" %}
+                    </div>
+                </section>
+
+                <div class="pw-flow-actions">
+                    <button type="button" class="btn btn-outline-secondary btn-lg" data-pw-back hidden><i class="fas fa-arrow-left me-2"></i>Back</button>
+                    <span class="pw-spacer"></span>
+                    <span data-pw-count></span>
+                    <button type="button" class="btn btn-primary btn-lg" data-pw-next>Continue<i class="fas fa-arrow-right ms-2"></i></button>
+                    <button type="submit" class="btn btn-primary btn-lg" data-pw-submit hidden>Review<i class="fas fa-arrow-right ms-2"></i></button>
+                </div>
+            </form>
+        </div>
+        <aside class="pw-flow-aside">
+            <div class="pw-balance-chip">
+                <div><div class="k">Available balance</div><div class="v">${{ account.account_balance|floatformat:2|intcomma }}</div></div>
+                <span class="acct">•••• {{ account.account_number|slice:"-4:" }}</span>
+            </div>
+            <div class="pw-panel pw-summary">
+                <div class="pw-summary-title">Summary</div>
+                <dl>
+                    <div><dt>Card</dt><dd data-pw-bind="card" id="pwCardLabel"></dd></div>
+                    <div><dt>Amount</dt><dd data-pw-bind="amount" data-pw-format="money"></dd></div>
+                    <div><dt>Fee</dt><dd>$0.00</dd></div>
+                </dl>
+            </div>
+        </aside>
+    </div>
+    {% endif %}
+</div>

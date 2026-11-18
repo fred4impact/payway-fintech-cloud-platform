@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% load pw_forms %}
+{% block title %}Identity verification — PayWay{% endblock %}
+
+{% block content %}
+<div class="container-xl px-3 px-lg-4 pw-page">
+    <div class="pw-flow-head">
+        <div>
+            <h1 class="pw-page-title">Identity verification</h1>
+            <p class="pw-page-sub">Submitted {{ kyc.submitted_at|date:"M d, Y" }} · Reference <span class="pw-mono">KYC-{{ kyc.id|stringformat:"05d" }}</span></p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'core:dashboard' %}" class="btn btn-ink-green btn-pill btn-lg"><i class="fas fa-table-cells-large me-2"></i>Overview</a>
+            <a href="{% url 'userauths:security_dashboard' %}" class="btn btn-outline-secondary btn-pill btn-lg">Security</a>
+        </div>
+    </div>
+
+    <div class="pw-bento-grid">
+        <div class="pw-stat-card is-hero pw-span-3">
+            <div class="t">Status <a href="#checklist" class="pw-arrow" aria-label="See checklist"><i class="fas fa-arrow-right"></i></a></div>
+            <div class="n" style="font-size: clamp(1.75rem,3vw,2.25rem)">{{ kyc.get_verification_status_display }}</div>
+            <div class="f">
+                {% if kyc.verification_status == 'approved' %}<span class="chip"><i class="fas fa-check"></i></span>Verified {{ kyc.verified_at|date:"M d" }}
+                {% elif kyc.verification_status == 'rejected' %}<span class="chip"><i class="fas fa-xmark"></i></span>Contact support to resubmit
+                {% else %}<span class="chip"><i class="fas fa-clock"></i></span>In the review queue{% endif %}
+            </div>
+        </div>
+        <div class="pw-stat-card pw-span-3">
+            <div class="t">Documents <a href="#documents" class="pw-arrow" aria-label="See documents"><i class="fas fa-arrow-right"></i></a></div>
+            <div class="n">{{ docs_uploaded }}<small>/{{ docs|length }}</small></div>
+            <div class="f {% if docs_uploaded < docs|length %}is-warn{% endif %}"><span class="chip"><i class="fas fa-lock"></i></span>{% if docs_uploaded == docs|length %}Uploaded securely{% else %}Some documents missing{% endif %}</div>
+        </div>
+        <div class="pw-stat-card pw-span-3">
+            <div class="t">Match confidence <span class="pw-arrow" aria-hidden="true"><i class="fas fa-arrow-right"></i></span></div>
+            <div class="n">{{ confidence }}<small>%</small></div>
+            <div class="f {% if confidence >= 80 %}{% elif confidence %}is-warn{% else %}is-muted{% endif %}">{% if confidence %}Document &amp; face checks{% else %}Awaiting automated checks{% endif %}</div>
+        </div>
+        <div class="pw-stat-card pw-span-3">
+            <div class="t">Risk score <span class="pw-arrow" aria-hidden="true"><i class="fas fa-arrow-right"></i></span></div>
+            <div class="n">{{ risk_pct }}<small>%</small></div>
+            <div class="f {% if risk_pct >= 60 %}is-bad{% elif risk_pct >= 30 %}is-warn{% endif %}">{% if risk_pct >= 60 %}High{% elif risk_pct >= 30 %}Medium{% else %}Low{% endif %} risk</div>
+        </div>
+
+        <section class="pw-panel pw-span-4">
+            <h2 class="pw-panel-title fs-5 mb-2">Verification progress</h2>
+            {% pw_gauge done_pct progress_pct pending_pct value=done_value caption="Complete" uid="kyc" %}
+            <div class="pw-legend-row">
+                <span><i style="background:#3f7f57"></i>Done</span>
+                <span><i style="background:#1f4d33"></i>In progress</span>
+                <span><i class="pw-hatch"></i>Pending</span>
+            </div>
+        </section>
+
+        <section class="pw-panel pw-span-5" id="checklist">
+            <h2 class="pw-panel-title fs-5 mb-2">Checklist</h2>
+            <div class="pw-list">
+                {% for c in checks %}
+                <div class="pw-list-item">
+                    <span class="pw-list-icon {% if c.state == 'done' %}tone-brand{% elif c.state == 'failed' %}tone-amber{% elif c.state == 'progress' %}tone-blue{% else %}pw-hatch{% endif %}">
+                        <i class="fas {% if c.state == 'done' %}fa-check{% elif c.state == 'failed' %}fa-xmark{% elif c.state == 'progress' %}fa-spinner{% else %}fa-hourglass-half{% endif %}"></i>
+                    </span>
+                    <div class="pw-list-body"><div class="pw-list-t">{{ c.label }}</div><div class="pw-list-s">Step {{ forloop.counter }} of {{ checks|length }}</div></div>
+                    <span class="pw-tag {% if c.state == 'done' %}done{% elif c.state == 'failed' %}failed{% elif c.state == 'progress' %}progress{% else %}pending{% endif %}">{% if c.state == 'done' %}Completed{% elif c.state == 'failed' %}Failed{% elif c.state == 'progress' %}In progress{% else %}Pending{% endif %}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="pw-dark-card pw-span-3 d-flex flex-column">
+            <div class="k">{% if kyc.verification_status == 'approved' %}Verified for{% else %}Typical review time{% endif %}</div>
+            <div class="v">{% if kyc.verification_status == 'approved' %}{{ kyc.verified_at|timesince|default:"—" }}{% else %}&lt; 24h{% endif %}</div>
+            <div class="small" style="color:rgba(255,255,255,.72)">{% if kyc.verification_status == 'approved' %}Higher limits and international transfers are unlocked.{% elif kyc.verification_status == 'rejected' %}Your documents couldn't be verified.{% else %}We'll notify you as soon as a decision is made.{% endif %}</div>
+            <div class="d-flex justify-content-center gap-3 mt-auto pt-3">
+                <a href="{% url 'account:notifications' %}" class="pw-round-btn light" aria-label="Notifications"><i class="fas fa-bell"></i></a>
+                {% if kyc.verification_status == 'approved' %}<a href="{% url 'account:create_international_transfer' %}" class="pw-round-btn light" aria-label="Send abroad"><i class="fas fa-earth-europe"></i></a>{% endif %}
+            </div>
+        </section>
+
+        <section class="pw-panel pw-span-7">
+            <h2 class="pw-panel-title fs-5 mb-3">Personal details</h2>
+            <div class="pw-fields-2">
+                <dl class="pw-review">
+                    <div><dt>Full name</dt><dd>{{ kyc.full_name }}</dd></div>
+                    <div><dt>Date of birth</dt><dd>{{ kyc.date_of_birth|date:"M d, Y" }}</dd></div>
+                    <div><dt>Nationality</dt><dd>{{ kyc.nationality }}</dd></div>
+                </dl>
+                <dl class="pw-review">
+                    <div><dt>Address</dt><dd>{{ kyc.address }}</dd></div>
+                    <div><dt>City</dt><dd>{{ kyc.city }}{% if kyc.state %}, {{ kyc.state }}{% endif %}</dd></div>
+                    <div><dt>Country</dt><dd>{{ kyc.country }} {{ kyc.postal_code }}</dd></div>
+                </dl>
+            </div>
+        </section>
+
+        <section class="pw-panel pw-span-5" id="documents">
+            <h2 class="pw-panel-title fs-5 mb-3">Documents</h2>
+            <div class="d-grid gap-2">
+                {% for d in docs %}
+                <a class="pw-doc" {% if d.file %}href="{{ d.file.url }}" target="_blank" rel="noopener"{% endif %}>
+                    <span class="pw-doc-thumb">{% if d.file %}<img src="{{ d.file.url }}" alt="" loading="lazy" onerror="this.remove()">{% endif %}<i class="fas {{ d.icon }}"></i></span>
+                    <span class="pw-list-body">
+                        <span class="pw-list-t d-block">{{ d.label }}</span>
+                        <span class="pw-list-s d-block">{% if d.file %}{{ d.file.name|cut:"kyc_documents/" }}{% else %}Not uploaded{% endif %}</span>
+                    </span>
+                    <span class="pw-tag {% if d.file %}done{% else %}pending{% endif %}">{% if d.file %}Uploaded{% else %}Missing{% endif %}</span>
+                </a>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% load pw_forms humanize %}
+{% block title %}Send money — PayWay{% endblock %}
+
+{% block content %}
+<div class="container-xl px-3 px-lg-4 pw-page">
+    <div class="pw-flow-head">
+        <div>
+            <a href="{% url 'core:dashboard' %}" class="pw-back-link"><i class="fas fa-arrow-left"></i>Overview</a>
+            <h1>Send money</h1>
+            <p>Transfer to any PayWay account in seconds.</p>
+        </div>
+        <a href="{% url 'account:transactions' %}" class="btn btn-outline-secondary"><i class="fas fa-clock-rotate-left me-2"></i>History</a>
+    </div>
+
+    <div class="pw-flow">
+        <div class="pw-flow-main">
+            {% pw_stepper "Recipient|Amount|Review|Done" 1 flow=True %}
+            <form method="post" class="pw-flow-card" data-pw-flow novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="stage" value="details">
+                {% include 'partials/_form_errors.html' %}
+
+                <section class="pw-step">
+                    <div class="pw-step-head">
+                        <div class="pw-step-count">Step 1</div>
+                        <h2 class="pw-step-title">Who are you paying?</h2>
+                        <p class="pw-step-sub">Enter the recipient's 10-digit PayWay account number.</p>
+                    </div>
+                    <div class="pw-fields">
+                        {% pw_field form.receiver_account label="Recipient account number" %}
+                        <a href="{% url 'account:search_account' %}" class="small"><i class="fas fa-magnifying-glass me-1"></i>Don't know it? Find an account by email</a>
+                    </div>
+                </section>
+
+                <section class="pw-step" hidden>
+                    <div class="pw-step-head">
+                        <div class="pw-step-count">Step 2</div>
+                        <h2 class="pw-step-title">How much?</h2>
+                        <p class="pw-step-sub">A {% widthratio fee_rate 1 100 %}% fee applies. You'll review everything before it's sent.</p>
+                    </div>
+                    <div class="pw-fields">
+                        <div class="pw-amount">{% pw_field form.amount prefix="$" hint="" %}</div>
+                        <div class="pw-fields-2">
+                            {% pw_field form.description label="Note to recipient" hint="" %}
+                            {% pw_field form.reference hint="" %}
+                        </div>
+                    </div>
+                </section>
+
+                <div class="pw-flow-actions">
+                    <button type="button" class="btn btn-outline-secondary btn-lg" data-pw-back hidden><i class="fas fa-arrow-left me-2"></i>Back</button>
+                    <span class="pw-spacer"></span>
+                    <span data-pw-count></span>
+                    <button type="button" class="btn btn-primary btn-lg" data-pw-next>Continue<i class="fas fa-arrow-right ms-2"></i></button>
+                    <button type="submit" class="btn btn-primary btn-lg" data-pw-submit hidden>Review transfer<i class="fas fa-arrow-right ms-2"></i></button>
+                </div>
+            </form>
+        </div>
+
+        <aside class="pw-flow-aside">
+            <div class="pw-balance-chip">
+                <div><div class="k">Available balance</div><div class="v">${{ account.account_balance|floatformat:2|intcomma }}</div></div>
+                <span class="acct">•••• {{ account.account_number|slice:"-4:" }}</span>
+            </div>
+            <div class="pw-panel pw-summary">
+                <div class="pw-summary-title">Summary</div>
+                <dl>
+                    <div><dt>To account</dt><dd data-pw-bind="receiver_account" data-pw-empty="Not set"></dd></div>
+                    <div><dt>Amount</dt><dd data-pw-bind="amount" data-pw-format="money"></dd></div>
+                    <div><dt>Fee ({% widthratio fee_rate 1 100 %}%)</dt><dd id="pwFee">—</dd></div>
+                    <div><dt>Total</dt><dd id="pwTotal">—</dd></div>
+                    <div><dt>Note</dt><dd data-pw-bind="description" data-pw-empty="None"></dd></div>
+                </dl>
+            </div>
+        </aside>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const form = document.querySelector('form[data-pw-flow]');
+    const rate = {{ fee_rate }};
+    const fmt = v => '$' + v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    form.addEventListener('pw:change', () => {
+        const amt = parseFloat(form.amount.value);
+        document.getElementById('pwFee').textContent = isNaN(amt) ? '—' : fmt(Math.round(amt * rate * 100) / 100);
+        document.getElementById('pwTotal').textContent = isNaN(amt) ? '—' : fmt(amt + Math.round(amt * rate * 100) / 100);
+    });
+})();
+</script>
+{% endblock %}

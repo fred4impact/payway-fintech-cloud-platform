@@ -11,6 +11,8 @@ services:
     environment:
       - DEBUG=False
       - DJANGO_SETTINGS_MODULE=payway.settings
+      - RUN_MIGRATIONS=1
+      - RUN_COLLECTSTATIC=1
       - DATABASE_URL=postgresql://payway_user:payway_password@db:5432/payway_db
       - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
@@ -20,8 +22,10 @@ services:
       - media_volume:/app/media
       - ./logs:/app/logs
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - payway-network
       - monitoring # ← added so Prometheus can scrape /health/ /ready/
@@ -43,7 +47,6 @@ services:
       - POSTGRES_PASSWORD=payway_password
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     ports:
       - "5432:5432"
     networks:
@@ -81,7 +84,7 @@ services:
     volumes:
       - static_volume:/app/staticfiles
       - media_volume:/app/media
-      - ./nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - web
     networks:
@@ -94,6 +97,12 @@ services:
     container_name: payway-celery
     restart: unless-stopped
     command: celery -A payway worker --loglevel=info
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A payway inspect ping -d celery@$$HOSTNAME --timeout 5"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 30s
     environment:
       - DEBUG=False
       - DJANGO_SETTINGS_MODULE=payway.settings
@@ -103,8 +112,10 @@ services:
     volumes:
       - ./logs:/app/logs
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - payway-network
 
@@ -114,6 +125,8 @@ services:
     container_name: payway-celery-beat
     restart: unless-stopped
     command: celery -A payway beat --loglevel=info
+    healthcheck:
+      disable: true # image healthcheck curls :8000, which beat doesn't serve
     environment:
       - DEBUG=False
       - DJANGO_SETTINGS_MODULE=payway.settings
@@ -123,8 +136,10 @@ services:
     volumes:
       - ./logs:/app/logs
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - payway-network
 

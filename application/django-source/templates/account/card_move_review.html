@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% load pw_forms humanize %}
+{% block title %}Review — PayWay{% endblock %}
+{% block content %}
+<div class="container-xl px-3 px-lg-4 pw-page">
+    <div class="pw-flow-head"><div><h1>{% if direction == 'fund' %}Review top-up{% else %}Review withdrawal{% endif %}</h1><p>Confirm to complete.</p></div></div>
+    <div class="pw-flow is-narrow">
+        <div class="pw-flow-main">
+            {% pw_stepper "Card|Amount|Review|Done" 3 %}
+            <div class="pw-flow-card">
+                <div class="pw-review-amount">
+                    <div class="k">{% if direction == 'fund' %}Adding to your balance{% else %}Withdrawing to your card{% endif %}</div>
+                    <div class="v">${{ amount|floatformat:2|intcomma }}</div>
+                    <div class="to"><i class="fas fa-credit-card"></i>{{ card.card_brand }} •••• {{ card.last_four_digits }}</div>
+                </div>
+                <dl class="pw-review">
+                    <div><dt>{% if direction == 'fund' %}From card{% else %}To card{% endif %}</dt><dd>{{ card.card_brand }} •••• {{ card.last_four_digits }}</dd></div>
+                    <div><dt>Cardholder</dt><dd>{{ card.card_holder_name }}</dd></div>
+                    {% if form.cleaned_data.description %}<div><dt>Note</dt><dd>{{ form.cleaned_data.description }}</dd></div>{% endif %}
+                    <div><dt>Fee</dt><dd>$0.00</dd></div>
+                    <div><dt>Current balance</dt><dd>${{ account.account_balance|floatformat:2|intcomma }}</dd></div>
+                    <div class="is-total"><dt>Balance after</dt><dd>${{ balance_after|floatformat:2|intcomma }}</dd></div>
+                </dl>
+                <div class="pw-flow-actions">
+                    <form method="post">{% csrf_token %}<input type="hidden" name="stage" value="edit">{% for f in form %}{{ f.as_hidden }}{% endfor %}
+                        <button type="submit" class="btn btn-outline-secondary btn-lg"><i class="fas fa-pen me-2"></i>Edit</button></form>
+                    <span class="pw-spacer"></span>
+                    <form method="post">{% csrf_token %}<input type="hidden" name="stage" value="confirm">{% for f in form %}{{ f.as_hidden }}{% endfor %}
+                        <button type="submit" class="btn btn-success btn-lg"><i class="fas fa-lock me-2"></i>{% if direction == 'fund' %}Add{% else %}Withdraw{% endif %} ${{ amount|floatformat:2|intcomma }}</button></form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
