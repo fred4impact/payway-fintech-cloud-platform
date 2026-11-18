@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% block title %}{{ card.card_brand }} •••• {{ card.last_four_digits }} — PayWay{% endblock %}
+
+{% block content %}
+<div class="container-xl px-3 px-lg-4 pw-page">
+    <div class="pw-flow-head">
+        <div>
+            <a href="{% url 'account:credit_cards' %}" class="pw-back-link"><i class="fas fa-arrow-left"></i>Cards</a>
+            <h1>{{ card.card_brand }} •••• {{ card.last_four_digits }}</h1>
+            <p>Linked {{ card.created_at|date:"M d, Y" }}{% if card.last_used %} · last used {{ card.last_used|timesince }} ago{% endif %}</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'account:edit_credit_card' card.id %}" class="btn btn-outline-secondary"><i class="fas fa-pen me-2"></i>Edit</a>
+            <a href="{% url 'account:delete_credit_card' card.id %}" class="btn btn-outline-danger"><i class="fas fa-trash me-2"></i>Remove</a>
+        </div>
+    </div>
+
+    <div class="pw-flow" style="max-width: 1080px;">
+        <div class="pw-flow-main d-grid gap-3">
+            <div class="pw-panel">
+                <div class="pw-panel-head"><h2 class="pw-panel-title">Move money</h2></div>
+                <div class="pw-fields-2">
+                    <a href="{% url 'account:card_funding' %}?card={{ card.id }}" class="pw-option{% if card.status != 'active' or is_expired %} disabled pe-none opacity-50{% endif %}">
+                        <span class="pw-tile pw-tile-sm tone-brand"><i class="fas fa-arrow-down"></i></span>
+                        <span><span class="t d-block">Add money</span><span class="s d-block">Top up from this card</span></span>
+                    </a>
+                    <a href="{% url 'account:card_withdrawal' %}?card={{ card.id }}" class="pw-option{% if card.status != 'active' or is_expired %} disabled pe-none opacity-50{% endif %}">
+                        <span class="pw-tile pw-tile-sm tone-amber"><i class="fas fa-arrow-up"></i></span>
+                        <span><span class="t d-block">Withdraw</span><span class="s d-block">Send to this card</span></span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="pw-panel">
+                <div class="pw-panel-head"><h2 class="pw-panel-title">Top-up limits</h2></div>
+                <div class="pw-fields-2">
+                    <div>
+                        <div class="d-flex justify-content-between small"><span class="text-muted">Today</span><span class="pw-num">${{ funded_today|floatformat:2|intcomma }} / ${{ card.daily_limit|floatformat:0|intcomma }}</span></div>
+                        <div class="pw-meter"><span style="width: {{ daily_pct }}%"></span></div>
+                        <div class="small text-muted">${{ daily_remaining|floatformat:2|intcomma }} left today</div>
+                    </div>
+                    <div>
+                        <div class="d-flex justify-content-between small"><span class="text-muted">This month</span><span class="pw-num">${{ funded_month|floatformat:2|intcomma }} / ${{ card.monthly_limit|floatformat:0|intcomma }}</span></div>
+                        <div class="pw-meter"><span style="width: {{ monthly_pct }}%"></span></div>
+                        <div class="small text-muted">${{ monthly_remaining|floatformat:2|intcomma }} left this month</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pw-panel pw-panel-flush">
+                <div class="pw-panel-head px-4 pt-4"><h2 class="pw-panel-title">Recent activity on this card</h2></div>
+                <div class="table-responsive">
+                    <table class="table pw-table mb-0">
+                        <thead><tr><th>Type</th><th>Date</th><th class="text-end">Amount</th><th class="text-end">Status</th></tr></thead>
+                        <tbody>
+                        {% for tx in history %}
+                            <tr>
+                                <td><a href="{% url 'account:transaction_detail' tx.transaction_id %}" class="pw-party"><span class="pw-party-dot {% if tx.transaction_type == 'card_funding' %}in{% else %}out{% endif %}"><i class="fas {% if tx.transaction_type == 'card_funding' %}fa-arrow-down{% else %}fa-arrow-up{% endif %}"></i></span>{% if tx.transaction_type == 'card_funding' %}Top-up{% else %}Withdrawal{% endif %}</a></td>
+                                <td class="text-muted">{{ tx.created_at|date:"M d, H:i" }}</td>
+                                <td class="text-end pw-num fw-medium">{% if tx.transaction_type == 'card_funding' %}+{% else %}−{% endif %}${{ tx.amount|floatformat:2|intcomma }}</td>
+                                <td class="text-end"><span class="pw-status s-{{ tx.status }}">{{ tx.get_status_display }}</span></td>
+                            </tr>
+                        {% empty %}
+                            <tr><td colspan="4" class="text-center text-muted py-4">No activity on this card yet.</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <aside class="pw-flow-aside">
+            <div class="pw-card-preview">
+                <div class="d-flex justify-content-between align-items-start">
+                    <span class="pw-card-chip"></span>
+                    <span class="pw-card-brand">{{ card.card_brand }}</span>
+                </div>
+                <div class="pw-card-number">{{ card.masked_number }}</div>
+                <div class="pw-card-meta">
+                    <div>Cardholder<strong>{{ card.card_holder_name }}</strong></div>
+                    <div class="text-end">Expires<strong>{{ card.expiry_month|stringformat:"02d" }}/{{ card.expiry_year }}</strong></div>
+                </div>
+            </div>
+            <div class="pw-panel pw-summary always">
+                <div class="pw-summary-title">Details</div>
+                <dl>
+                    <div><dt>Status</dt><dd>{% if is_expired %}<span class="pw-status s-expired">Expired</span>{% else %}<span class="pw-status s-{% if card.status == 'active' %}completed{% else %}pending{% endif %}">{{ card.get_status_display }}</span>{% endif %}</dd></div>
+                    <div><dt>Default card</dt><dd>{{ card.is_default|yesno:"Yes,No" }}</dd></div>
+                    <div><dt>Type</dt><dd>{{ card.get_card_type_display }}</dd></div>
+                    <div><dt>Total added</dt><dd class="text-success">${{ card.total_funded|floatformat:2|intcomma }}</dd></div>
+                    <div><dt>Total withdrawn</dt><dd>${{ card.total_withdrawn|floatformat:2|intcomma }}</dd></div>
+                </dl>
+            </div>
+        </aside>
+    </div>
+</div>
+{% endblock %}

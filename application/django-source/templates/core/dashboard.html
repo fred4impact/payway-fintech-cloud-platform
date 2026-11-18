@@ -1,0 +1,251 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+
+{% block title %}Overview — PayWay{% endblock %}
+
+{% block content %}
+<div class="pw-dash">
+
+    <!-- Header -->
+    <div class="pw-dash-head">
+        <div>
+            <h1 class="pw-dash-title">Overview</h1>
+            <p class="pw-dash-sub">Welcome back, {{ user.first_name|default:user.username }}. Here's how your money moved.</p>
+        </div>
+        <div class="pw-dash-tools">
+            <div class="dropdown">
+                <button class="pw-chip-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="far fa-calendar"></i>{{ range_label }}
+                </button>
+                <ul class="dropdown-menu">
+                    <li><h6 class="dropdown-header">Period</h6></li>
+                    <li><a class="dropdown-item {% if range_days == 7 %}active{% endif %}" href="?range=7">Last 7 days</a></li>
+                    <li><a class="dropdown-item {% if range_days == 30 %}active{% endif %}" href="?range=30">Last 30 days</a></li>
+                    <li><a class="dropdown-item {% if range_days == 90 %}active{% endif %}" href="?range=90">Last 90 days</a></li>
+                </ul>
+            </div>
+            <a class="pw-chip-btn" aria-label="Export CSV" href="?range={{ range_days }}&export=csv"><i class="fas fa-download"></i><span class="pw-chip-label">Export</span></a>
+            <div class="dropdown">
+                <button class="pw-chip-btn pw-chip-icon" type="button" data-bs-toggle="dropdown" aria-label="More options"><i class="fas fa-ellipsis"></i></button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="{% url 'account:transactions' %}"><i class="fas fa-list me-2"></i>All transactions</a></li>
+                    <li><a class="dropdown-item" href="{% url 'account:account_info' %}"><i class="fas fa-circle-user me-2"></i>Account details</a></li>
+                    <li><button class="dropdown-item" type="button" data-pw-print><i class="fas fa-print me-2"></i>Print overview</button></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    {% if not account %}
+        <div class="alert alert-warning">We couldn't find an account for your profile. Please contact support.</div>
+    {% endif %}
+
+    <!-- KPI cards -->
+    <div class="pw-kpis">
+        {% for k in kpis %}
+        <div class="pw-panel pw-kpi">
+            <div class="pw-kpi-top">
+                <span class="pw-tile tone-{{ k.tone }}"><i class="fas {{ k.icon }}"></i></span>
+                <div class="min-w-0">
+                    <div class="pw-kpi-label">{{ k.label }}</div>
+                    <div class="pw-kpi-value">
+                        {% if k.money %}${{ k.value|floatformat:2|intcomma }}{% else %}{{ k.value|intcomma }}{% endif %}
+                        {% if k.delta is not None %}
+                            <span class="pw-delta-pill {% if k.invert %}{% if k.delta > 0 %}down{% else %}up{% endif %}{% else %}{% if k.delta >= 0 %}up{% else %}down{% endif %}{% endif %}">
+                                <i class="fas {% if k.delta >= 0 %}fa-arrow-up{% else %}fa-arrow-down{% endif %}"></i>{{ k.delta_abs }}%
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="pw-kpi-foot">
+                <span>vs previous {{ range_days }} days</span>
+                <div class="pw-spark-box"><canvas class="pw-spark" data-spark='{{ k.spark_json }}' data-tone="{{ k.tone }}" aria-hidden="true"></canvas></div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Charts row -->
+    <div class="pw-grid pw-grid-charts">
+        <section class="pw-panel">
+            <div class="pw-panel-head">
+                <div>
+                    <h2 class="pw-panel-title">Balance over time</h2>
+                    <div class="pw-big-number">${{ account.account_balance|floatformat:2|intcomma }}
+                        {% if balance_delta is not None %}
+                        <span class="pw-delta-pill {% if balance_delta >= 0 %}up{% else %}down{% endif %}"><i class="fas {% if balance_delta >= 0 %}fa-arrow-up{% else %}fa-arrow-down{% endif %}"></i>{{ balance_delta_abs }}%</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <span class="pw-select-chip">Daily</span>
+            </div>
+            <div class="pw-chart pw-chart-lg"><canvas id="balanceChart" aria-label="Balance over time chart" role="img"></canvas></div>
+        </section>
+
+        <section class="pw-panel">
+            <div class="pw-panel-head">
+                <div>
+                    <h2 class="pw-panel-title">Cash flow</h2>
+                    <div class="pw-legend">
+                        <span><i style="background:#047857"></i>Money in</span>
+                        <span><i style="background:#cbd5e1"></i>Money out</span>
+                        <span><i class="line" style="background:#3b82f6"></i>Transactions</span>
+                    </div>
+                </div>
+                <span class="pw-select-chip">Last {{ range_days }} days</span>
+            </div>
+            <div class="pw-chart pw-chart-lg"><canvas id="flowChart" aria-label="Cash flow chart" role="img"></canvas></div>
+        </section>
+
+        <section class="pw-panel">
+            <div class="pw-panel-head">
+                <h2 class="pw-panel-title">Payment requests</h2>
+                <a href="{% url 'account:payment_requests' %}" class="pw-icon-link" aria-label="View payment requests"><i class="fas fa-arrow-up-right-from-square"></i></a>
+            </div>
+            <div class="pw-funnel">
+                {% for f in funnel %}
+                <div class="pw-funnel-row">
+                    <div class="pw-funnel-bar-wrap"><div class="pw-funnel-bar" style="width: {{ f.width }}%; background: {{ f.color }};"></div></div>
+                    <div class="pw-funnel-meta">
+                        <span class="pw-funnel-label">{{ f.label }}</span>
+                        <span class="pw-funnel-value">{{ f.value }}</span>
+                    </div>
+                    <span class="pw-funnel-pct">{% if forloop.first %}&nbsp;{% else %}{{ f.pct }}%{% endif %}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% if not req_total %}
+                <p class="pw-muted-note">No requests in this period. <a href="{% url 'account:create_payment_request' %}">Request money</a></p>
+            {% endif %}
+        </section>
+    </div>
+
+    <!-- Data row -->
+    <div class="pw-grid pw-grid-data">
+        <section class="pw-panel">
+            <div class="pw-panel-head">
+                <h2 class="pw-panel-title">Spending mix</h2>
+            </div>
+            <div class="pw-donut">
+                <canvas id="mixChart" aria-label="Spending by category" role="img"></canvas>
+                <div class="pw-donut-center">
+                    <strong>${{ mix_total|floatformat:0|intcomma }}</strong>
+                    <span>Total out</span>
+                </div>
+            </div>
+            <ul class="pw-mix-list">
+                {% for m in mix %}
+                    <li><i style="background: {{ m.color }}"></i><span>{{ m.label }}</span><b>{{ m.pct }}%</b></li>
+                {% empty %}
+                    <li class="pw-muted-note">No outgoing payments in this period.</li>
+                {% endfor %}
+            </ul>
+        </section>
+
+        <section class="pw-panel pw-panel-flush">
+            <div class="pw-panel-head px-4 pt-4">
+                <h2 class="pw-panel-title">Recent activity</h2>
+                <a href="{% url 'account:transactions' %}" class="pw-icon-link" aria-label="View all transactions"><i class="fas fa-ellipsis-vertical"></i></a>
+            </div>
+            <div class="table-responsive">
+                <table class="table pw-table mb-0">
+                    <thead>
+                        <tr><th>Counterparty</th><th class="d-none d-md-table-cell">Type</th><th class="d-none d-sm-table-cell">Date</th><th class="text-end">Amount</th><th class="text-end">Status</th></tr>
+                    </thead>
+                    <tbody>
+                    {% for r in recent %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'account:transaction_detail' r.tx.transaction_id %}" class="pw-party">
+                                    <span class="pw-party-dot {% if r.incoming %}in{% else %}out{% endif %}"><i class="fas {% if r.incoming %}fa-arrow-down{% else %}fa-arrow-up{% endif %}"></i></span>
+                                    <span class="text-truncate">{{ r.name }}</span>
+                                </a>
+                            </td>
+                            <td class="d-none d-md-table-cell text-muted">{{ r.tx.get_transaction_type_display }}</td>
+                            <td class="d-none d-sm-table-cell text-muted">{{ r.tx.created_at|date:"M d" }}</td>
+                            <td class="text-end pw-num fw-medium {% if r.incoming %}text-success{% endif %}">{% if r.incoming %}+{% else %}−{% endif %}${{ r.tx.amount|floatformat:2|intcomma }}</td>
+                            <td class="text-end"><span class="pw-status s-{{ r.tx.status }}">{{ r.tx.get_status_display }}</span></td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="5" class="text-center text-muted py-5">No transactions yet. <a href="{% url 'account:money_transfer' %}">Send your first payment</a></td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="p-3">
+                <a href="{% url 'account:transactions' %}" class="pw-view-all">View all transactions <i class="fas fa-arrow-right"></i></a>
+            </div>
+        </section>
+
+        <div class="pw-stack">
+            <a class="pw-panel pw-mini" href="{% url 'account:payment_requests' %}">
+                <div class="pw-mini-head">
+                    <span class="pw-tile pw-tile-sm tone-violet"><i class="fas fa-hand-holding-dollar"></i></span>
+                    <span class="pw-mini-title">Requests to pay</span>
+                </div>
+                <div class="pw-mini-body">
+                    <div>
+                        <div class="pw-mini-k">Awaiting you</div>
+                        <div class="pw-mini-v">{{ to_pay_count }} <small>· ${{ to_pay_amount|floatformat:2|intcomma }}</small></div>
+                    </div>
+                    <i class="fas fa-chevron-right text-muted"></i>
+                </div>
+            </a>
+
+            <a class="pw-panel pw-mini" href="{% url 'account:credit_cards' %}">
+                <div class="pw-mini-head">
+                    <span class="pw-tile pw-tile-sm tone-blue"><i class="fas fa-credit-card"></i></span>
+                    <span class="pw-mini-title">Linked cards</span>
+                </div>
+                <div class="pw-mini-body">
+                    <div>
+                        <div class="pw-mini-k">{% if default_card %}{{ default_card.card_brand }} default{% else %}No cards yet{% endif %}</div>
+                        <div class="pw-mini-v">{{ cards.count }} {% if default_card %}<small class="pw-mono">•••• {{ default_card.last_four_digits }}</small>{% endif %}</div>
+                    </div>
+                    <i class="fas fa-chevron-right text-muted"></i>
+                </div>
+            </a>
+
+            <a class="pw-panel pw-mini" href="{% url 'account:international_transfers' %}">
+                <div class="pw-mini-head">
+                    <span class="pw-tile pw-tile-sm tone-amber"><i class="fas fa-earth-europe"></i></span>
+                    <span class="pw-mini-title">International</span>
+                </div>
+                <div class="pw-mini-body">
+                    <div>
+                        <div class="pw-mini-k">Sent this period</div>
+                        <div class="pw-mini-v">${{ intl_total|floatformat:2|intcomma }}</div>
+                        <div class="pw-mini-k">{{ intl_count }} transfer{{ intl_count|pluralize }}</div>
+                    </div>
+                    {% if intl_count %}<div class="pw-spark-box sm"><canvas class="pw-spark pw-spark-sm" data-spark='{{ intl_spark }}' data-tone="amber" aria-hidden="true"></canvas></div>{% else %}<i class="fas fa-chevron-right text-muted"></i>{% endif %}
+                </div>
+            </a>
+
+            <a class="pw-panel pw-mini" href="{% url 'account:kyc' %}">
+                <div class="pw-mini-head">
+                    <span class="pw-tile pw-tile-sm tone-brand"><i class="fas fa-id-card"></i></span>
+                    <span class="pw-mini-title">Verification</span>
+                </div>
+                <div class="pw-mini-body">
+                    <div>
+                        <div class="pw-mini-k">Account <span class="pw-mono">{{ account.account_number }}</span></div>
+                        <div class="pw-mini-v">
+                            {% if kyc %}<span class="pw-status s-{{ kyc.verification_status }}">{{ kyc.get_verification_status_display }}</span>
+                            {% else %}<span class="pw-status s-pending">Not started</span>{% endif %}
+                        </div>
+                    </div>
+                    <i class="fas fa-chevron-right text-muted"></i>
+                </div>
+            </a>
+        </div>
+    </div>
+</div>
+
+{{ chart_data|json_script:"pw-dashboard-data" }}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendor/chartjs/chart.umd.min.js' %}"></script>
+<script src="{% static 'js/dashboard.js' %}"></script>
+{% endblock %}

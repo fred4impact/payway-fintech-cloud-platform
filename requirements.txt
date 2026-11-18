@@ -13,12 +13,14 @@ whitenoise==6.6.0
 
 # Production dependencies
 gunicorn>=22.0.0
-gevent==23.9.1
+gevent==24.11.1
 psycopg2-binary==2.9.9
 redis==4.6.0
 dj-database-url==2.1.0
 
 # Background task processing (used by docker-compose `celery` services)
 celery[redis]==5.3.4
+# kombu>=5.6 needs redis-py>=6.1, but celery[redis] 5.3.4 caps redis<5
+kombu==5.3.7
 django-celery-beat==2.9.0
 django-celery-results==2.6.0

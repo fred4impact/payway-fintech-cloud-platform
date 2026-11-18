@@ -1,0 +1,8 @@
+<ol class="pw-stepper" {% if flow %}data-pw-stepper{% endif %} style="--pw-steps: {{ total }}; --pw-progress: {{ pct }}%" aria-label="Progress">
+    {% for s in items %}
+    <li class="pw-stepper-item is-{{ s.state }}" data-step="{{ s.n }}" {% if s.state == 'current' %}aria-current="step"{% endif %}>
+        <span class="pw-stepper-dot">{% if s.state == 'done' %}<i class="fas fa-check"></i>{% else %}{{ s.n }}{% endif %}</span>
+        <span class="pw-stepper-label">{{ s.label }}</span>
+    </li>
+    {% endfor %}
+</ol>

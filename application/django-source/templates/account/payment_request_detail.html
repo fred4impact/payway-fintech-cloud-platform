@@ -1,0 +1,291 @@
+{% extends 'base.html' %}
+
+{% block title %}Payment Request Details - PayWay{% endblock %}
+
+{% block extra_css %}
+{% endblock %}
+
+{% block content %}
+<div class="container-xl px-3 px-lg-4 pw-page">
+    <!-- Modern Header -->
+    <div class="page-header">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <div class="d-flex align-items-center mb-3">
+                    <a href="{% url 'account:payment_requests' %}" class="back-button me-3">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Back to Requests
+                    </a>
+                </div>
+                <h1>
+                    <i class="fas fa-hand-holding-usd me-3"></i>
+                    Payment Request Details
+                </h1>
+                <p>View and manage your payment request</p>
+            </div>
+            <div class="col-lg-4 text-lg-end">
+                <span class="request-id-badge">
+                    {{ payment_request.request_id }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-xl-10 col-lg-12">
+            <!-- Status Banner -->
+            <div class="status-banner {% if payment_request.status == 'paid' %}success{% elif payment_request.status == 'pending' and not payment_request.is_expired %}warning{% elif payment_request.status == 'expired' or payment_request.is_expired %}danger{% else %}info{% endif %}">
+                <div class="d-flex align-items-center">
+                    <div class="status-icon {% if payment_request.status == 'paid' %}success{% elif payment_request.status == 'pending' and not payment_request.is_expired %}warning{% elif payment_request.status == 'expired' or payment_request.is_expired %}danger{% else %}info{% endif %}">
+                        <i class="fas {% if payment_request.status == 'paid' %}fa-check-circle{% elif payment_request.status == 'pending' and not payment_request.is_expired %}fa-clock{% elif payment_request.status == 'expired' or payment_request.is_expired %}fa-exclamation-triangle{% else %}fa-times-circle{% endif %}"></i>
+                    </div>
+                    <div>
+                        <div class="status-title">
+                            {% if payment_request.status == 'paid' %}
+                                Payment Completed Successfully
+                            {% elif payment_request.status == 'pending' and not payment_request.is_expired %}
+                                Payment Pending
+                            {% elif payment_request.status == 'expired' or payment_request.is_expired %}
+                                Request Expired
+                            {% else %}
+                                Request Cancelled
+                            {% endif %}
+                        </div>
+                        <div class="status-description">
+                            {% if payment_request.status == 'pending' and not payment_request.is_expired %}
+                                Waiting for payment from {{ payment_request.recipient.get_full_name|default:payment_request.recipient.email }}
+                            {% elif payment_request.status == 'paid' %}
+                                Payment was completed on {{ payment_request.paid_at|date:"F d, Y \a\t g:i A" }}
+                            {% elif payment_request.is_expired %}
+                                This request expired on {{ payment_request.expires_at|date:"F d, Y \a\t g:i A" }}
+                            {% else %}
+                                This request was cancelled
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content Card -->
+            <div class="main-content-card">
+                <!-- Amount Display -->
+                <div class="content-section text-center">
+                    <div class="amount-display">
+                        ${{ payment_request.amount|floatformat:2 }} {{ payment_request.currency }}
+                    </div>
+                    {% if payment_request.description %}
+                        <p class="text-muted mb-0">{{ payment_request.description }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Request Information -->
+                <div class="content-section">
+                    <div class="section-header">
+                        <div class="section-icon bg-primary bg-opacity-10 text-primary">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
+                        <h3 class="section-title">Request Information</h3>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table info-table">
+                                <tr>
+                                    <td>Amount</td>
+                                    <td class="fw-bold text-success">${{ payment_request.amount|floatformat:2 }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Currency</td>
+                                    <td>{{ payment_request.currency }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Created</td>
+                                    <td>{{ payment_request.created_at|date:"F d, Y \a\t g:i A" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table info-table">
+                                {% if payment_request.expires_at %}
+                                <tr>
+                                    <td>Expires</td>
+                                    <td>
+                                        {{ payment_request.expires_at|date:"F d, Y \a\t g:i A" }}
+                                        {% if payment_request.is_expired %}
+                                            <span class="badge bg-danger ms-2">Expired</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% if payment_request.paid_at %}
+                                <tr>
+                                    <td>Paid</td>
+                                    <td class="text-success">{{ payment_request.paid_at|date:"F d, Y \a\t g:i A" }}</td>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <td>Status</td>
+                                    <td>
+                                        <span class="badge {% if payment_request.status == 'paid' %}bg-success{% elif payment_request.status == 'pending' %}bg-warning{% elif payment_request.status == 'expired' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                            {{ payment_request.status|title }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- User Information -->
+                <div class="content-section">
+                    <div class="section-header">
+                        <div class="section-icon bg-info bg-opacity-10 text-info">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <h3 class="section-title">User Information</h3>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="user-card requester">
+                                <div class="d-flex align-items-center">
+                                    <div class="user-avatar requester">
+                                        <i class="fas fa-user-plus"></i>
+                                    </div>
+                                    <div>
+                                        <div class="user-name">{{ payment_request.requester.get_full_name|default:"No Name" }}</div>
+                                        <div class="user-email">{{ payment_request.requester.email }}</div>
+                                        <div class="user-account">{{ payment_request.requester_account.account_number }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="user-card recipient">
+                                <div class="d-flex align-items-center">
+                                    <div class="user-avatar recipient">
+                                        <i class="fas fa-user-check"></i>
+                                    </div>
+                                    <div>
+                                        <div class="user-name">{{ payment_request.recipient.get_full_name|default:"No Name" }}</div>
+                                        <div class="user-email">{{ payment_request.recipient.email }}</div>
+                                        <div class="user-account">{{ payment_request.recipient_account.account_number }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    {% if payment_request.status == 'pending' and not payment_request.is_expired %}
+                        {% if user == payment_request.recipient %}
+                            <!-- Recipient can pay -->
+                            <a href="{% url 'account:settle_payment_request' payment_request.request_id %}" class="btn btn-success btn-lg">
+                                <i class="fas fa-dollar-sign me-2"></i>
+                                Pay ${{ payment_request.amount|floatformat:2 }}
+                            </a>
+                        {% else %}
+                            <!-- Requester can cancel -->
+                            <button class="btn btn-danger btn-lg" onclick="cancelRequest()">
+                                <i class="fas fa-times me-2"></i>
+                                Cancel Request
+                            </button>
+                        {% endif %}
+                    {% elif payment_request.status == 'paid' %}
+                        <div class="text-center">
+                            <div class="status-icon success mx-auto mb-3">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <h4 class="text-success fw-bold mb-2">Payment completed successfully!</h4>
+                            <p class="text-muted">The payment request has been fulfilled</p>
+                        </div>
+                    {% elif payment_request.is_expired %}
+                        <div class="text-center">
+                            <div class="status-icon danger mx-auto mb-3">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <h4 class="text-warning fw-bold mb-2">This request has expired</h4>
+                            <p class="text-muted">The payment request is no longer valid</p>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Related Transaction -->
+                {% if payment_request.status == 'paid' %}
+                <div class="content-section">
+                    <div class="section-header">
+                        <div class="section-icon bg-success bg-opacity-10 text-success">
+                            <i class="fas fa-exchange-alt"></i>
+                        </div>
+                        <h3 class="section-title">Related Transaction</h3>
+                    </div>
+                    
+                    <div class="user-card">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h6 class="mb-2">Transaction ID</h6>
+                                <div class="user-account">{{ payment_request.transaction_set.first.transaction_id|default:"N/A" }}</div>
+                            </div>
+                            <div class="col-md-4 text-md-end">
+                                <h6 class="mb-2">Completed</h6>
+                                <div class="text-success">{{ payment_request.paid_at|date:"F d, Y \a\t g:i A" }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+                <a href="{% url 'account:money_transfer' %}" class="quick-action-card">
+                    <div class="quick-action-icon bg-primary bg-opacity-10 text-primary">
+                        <i class="fas fa-paper-plane"></i>
+                    </div>
+                    <h6 class="quick-action-title">Send Money</h6>
+                    <p class="quick-action-description">Transfer money to others instantly</p>
+                    <span class="btn btn-outline-primary btn-sm">Send Money</span>
+                </a>
+                
+                <a href="{% url 'account:create_payment_request' %}" class="quick-action-card">
+                    <div class="quick-action-icon bg-info bg-opacity-10 text-info">
+                        <i class="fas fa-hand-holding-usd"></i>
+                    </div>
+                    <h6 class="quick-action-title">New Request</h6>
+                    <p class="quick-action-description">Create a new payment request</p>
+                    <span class="btn btn-outline-info btn-sm">Request Money</span>
+                </a>
+                
+                <a href="{% url 'account:payment_requests' %}" class="quick-action-card">
+                    <div class="quick-action-icon bg-success bg-opacity-10 text-success">
+                        <i class="fas fa-list"></i>
+                    </div>
+                    <h6 class="quick-action-title">All Requests</h6>
+                    <p class="quick-action-description">View all your payment requests</p>
+                    <span class="btn btn-outline-success btn-sm">View All</span>
+                </a>
+                
+                <a href="{% url 'account:transactions' %}" class="quick-action-card">
+                    <div class="quick-action-icon bg-warning bg-opacity-10 text-warning">
+                        <i class="fas fa-history"></i>
+                    </div>
+                    <h6 class="quick-action-title">Transaction History</h6>
+                    <p class="quick-action-description">View your payment history</p>
+                    <span class="btn btn-outline-warning btn-sm">View History</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function cancelRequest() {
+    if (confirm('Are you sure you want to cancel this payment request? This action cannot be undone.')) {
+        // Add AJAX call to cancel request
+        alert('Cancel functionality will be implemented in the next sprint.');
+    }
+}
+</script>
+{% endblock %}

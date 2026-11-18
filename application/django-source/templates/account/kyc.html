@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+{% load pw_forms %}
+{% block title %}Verify your identity — PayWay{% endblock %}
+
+{% block content %}
+<div class="container-xl px-3 px-lg-4 pw-page">
+    <div class="pw-flow-head">
+        <div>
+            <h1 class="pw-page-title">Verify your identity</h1>
+            <p class="pw-page-sub">Required by financial regulations. It takes about 3 minutes and unlocks higher limits.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'core:dashboard' %}" class="btn btn-outline-secondary btn-pill btn-lg">Do it later</a>
+        </div>
+    </div>
+
+    <div class="pw-flow">
+        <div class="pw-flow-main">
+            {% pw_stepper "Personal|Address|Documents|Review|Submitted" 1 flow=True %}
+            <form method="post" enctype="multipart/form-data" class="pw-flow-card" data-pw-flow novalidate>
+                {% csrf_token %}
+                {% include 'partials/_form_errors.html' %}
+
+                <section class="pw-step">
+                    <div class="pw-step-head">
+                        <div class="pw-step-count">Step 1</div>
+                        <h2 class="pw-step-title">Personal details</h2>
+                        <p class="pw-step-sub">As shown on your government-issued ID.</p>
+                    </div>
+                    <div class="pw-fields">
+                        {% pw_field form.full_name label="Full legal name" %}
+                        <div class="pw-fields-2">
+                            {% pw_field form.date_of_birth %}
+                            {% pw_field form.nationality %}
+                        </div>
+                    </div>
+                </section>
+
+                <section class="pw-step" hidden>
+                    <div class="pw-step-head">
+                        <div class="pw-step-count">Step 2</div>
+                        <h2 class="pw-step-title">Home address</h2>
+                        <p class="pw-step-sub">Where you currently live. It must match your proof of address.</p>
+                    </div>
+                    <div class="pw-fields">
+                        {% pw_field form.address label="Street address" %}
+                        <div class="pw-fields-2">
+                            {% pw_field form.city %}
+                            {% pw_field form.state label="State / province" %}
+                        </div>
+                        <div class="pw-fields-2">
+                            {% pw_field form.country %}
+                            {% pw_field form.postal_code %}
+                        </div>
+                    </div>
+                </section>
+
+                <section class="pw-step" hidden>
+                    <div class="pw-step-head">
+                        <div class="pw-step-count">Step 3</div>
+                        <h2 class="pw-step-title">Upload documents</h2>
+                        <p class="pw-step-sub">Clear, uncropped photos or scans (JPG or PNG).</p>
+                    </div>
+                    <div class="pw-fields">
+                        {% pw_field form.id_document label="Government ID (passport, licence or ID card)" %}
+                        {% pw_field form.proof_of_address label="Proof of address (utility bill or bank statement)" %}
+                        {% pw_field form.selfie_photo label="Selfie holding your ID" %}
+                    </div>
+                </section>
+
+                <section class="pw-step" hidden>
+                    <div class="pw-step-head">
+                        <div class="pw-step-count">Step 4</div>
+                        <h2 class="pw-step-title">Review &amp; submit</h2>
+                        <p class="pw-step-sub">Make sure everything matches your documents.</p>
+                    </div>
+                    <dl class="pw-review">
+                        <div><dt>Name</dt><dd data-pw-bind="full_name"></dd></div>
+                        <div><dt>Date of birth</dt><dd data-pw-bind="date_of_birth"></dd></div>
+                        <div><dt>Nationality</dt><dd data-pw-bind="nationality"></dd></div>
+                        <div><dt>Address</dt><dd><span data-pw-bind="address"></span>, <span data-pw-bind="city"></span></dd></div>
+                        <div><dt>Country</dt><dd><span data-pw-bind="country"></span> <span data-pw-bind="postal_code"></span></dd></div>
+                        <div><dt>ID document</dt><dd data-pw-bind="id_document" data-pw-empty="Not uploaded"></dd></div>
+                        <div><dt>Proof of address</dt><dd data-pw-bind="proof_of_address" data-pw-empty="Not uploaded"></dd></div>
+                        <div><dt>Selfie</dt><dd data-pw-bind="selfie_photo" data-pw-empty="Not uploaded"></dd></div>
+                    </dl>
+                    <div class="d-flex flex-wrap gap-3 small mt-3">
+                        <a href="#" data-pw-goto="0"><i class="fas fa-pen me-1"></i>Edit personal</a>
+                        <a href="#" data-pw-goto="1"><i class="fas fa-pen me-1"></i>Edit address</a>
+                        <a href="#" data-pw-goto="2"><i class="fas fa-pen me-1"></i>Edit documents</a>
+                    </div>
+                    <div class="pw-note"><i class="fas fa-lock"></i><span>Your documents are stored securely and used only to verify your identity.</span></div>
+                </section>
+
+                <div class="pw-flow-actions">
+                    <button type="button" class="btn btn-outline-secondary btn-lg" data-pw-back hidden><i class="fas fa-arrow-left me-2"></i>Back</button>
+                    <span class="pw-spacer"></span>
+                    <span data-pw-count></span>
+                    <button type="button" class="btn btn-primary btn-lg" data-pw-next>Continue<i class="fas fa-arrow-right ms-2"></i></button>
+                    <button type="submit" class="btn btn-success btn-lg" data-pw-submit hidden><i class="fas fa-paper-plane me-2"></i>Submit for review</button>
+                </div>
+            </form>
+        </div>
+
+        <aside class="pw-flow-aside">
+            <div class="pw-stat-card is-hero">
+                <div class="t">Your progress <span class="pw-arrow" aria-hidden="true"><i class="fas fa-arrow-right"></i></span></div>
+                <div class="n"><span id="pwKycPct">0</span><small>%</small></div>
+                <div class="f"><span class="chip" id="pwKycStep">1/4</span><span id="pwKycLabel">Personal details</span></div>
+            </div>
+            <div class="pw-panel">
+                <h2 class="pw-panel-title fs-6 mb-1">What you'll need</h2>
+                <div class="pw-list">
+                    <div class="pw-list-item"><span class="pw-list-icon tone-brand"><i class="fas fa-id-card"></i></span><div class="pw-list-body"><div class="pw-list-t">Photo ID</div><div class="pw-list-s">Passport, licence or national ID</div></div></div>
+                    <div class="pw-list-item"><span class="pw-list-icon tone-blue"><i class="fas fa-file-lines"></i></span><div class="pw-list-body"><div class="pw-list-t">Proof of address</div><div class="pw-list-s">Bill or statement, under 3 months old</div></div></div>
+                    <div class="pw-list-item"><span class="pw-list-icon tone-violet"><i class="fas fa-camera"></i></span><div class="pw-list-body"><div class="pw-list-t">A selfie</div><div class="pw-list-s">Holding your ID, face clearly visible</div></div></div>
+                </div>
+            </div>
+            <div class="pw-dark-card">
+                <div class="k">Time to complete</div>
+                <div class="v">~3 min</div>
+                <div class="small" style="color:rgba(255,255,255,.72)">Most reviews finish within one business day.</div>
+            </div>
+        </aside>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const form = document.querySelector('form[data-pw-flow]');
+    if (!form) return;
+    const labels = ['Personal details', 'Home address', 'Documents', 'Review & submit'];
+    form.addEventListener('pw:step', (e) => {
+        const { index, total } = e.detail;
+        document.getElementById('pwKycPct').textContent = Math.round(index / total * 100);
+        document.getElementById('pwKycStep').textContent = `${index + 1}/${total}`;
+        document.getElementById('pwKycLabel').textContent = labels[index] || '';
+    });
+})();
+</script>
+{% endblock %}

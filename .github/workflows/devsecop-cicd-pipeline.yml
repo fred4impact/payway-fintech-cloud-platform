@@ -169,7 +169,7 @@ jobs:
           DJANGO_SETTINGS_MODULE: payway.settings
         run: |
           pytest \
-            --cov=. \
+            --cov=application/django-source \
             --cov-report=xml:coverage.xml \
             --cov-report=html:coverage-html \
             --cov-report=term-missing \
@@ -249,7 +249,7 @@ jobs:
       - name: Run Bandit
         continue-on-error: true
         run: |
-          bandit -r . -x tests
+          bandit -r application/django-source -x '*/tests*,*/migrations/*'
 
   ##################################
   # DOCKER BUILD

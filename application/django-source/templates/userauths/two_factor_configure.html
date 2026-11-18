@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% load pw_forms %}
+{% block title %}Scan QR code — PayWay{% endblock %}
+{% block content %}
+<div class="container-xl px-3 px-lg-4 pw-page">
+    <div class="pw-flow-head">
+        <div>
+            <a href="{% url 'userauths:two_factor_setup' %}" class="pw-back-link"><i class="fas fa-arrow-left"></i>Method</a>
+            <h1 class="pw-page-title">Link your authenticator</h1>
+            <p class="pw-page-sub">Scan the code, then enter the 6 digits your app shows.</p>
+        </div>
+    </div>
+    <div class="pw-flow">
+        <div class="pw-flow-main">
+            {% pw_stepper "Method|Scan|Verify|Done" 2 %}
+            <div class="pw-flow-card">
+                <div class="pw-fields-2 align-items-center">
+                    <div class="text-center">
+                        <img src="data:image/png;base64,{{ qr_code }}" alt="QR code for your authenticator app" width="220" height="220" style="border-radius:16px;border:1px solid var(--pw-border);max-width:100%;height:auto">
+                    </div>
+                    <div>
+                        <div class="pw-step-count">Step 2</div>
+                        <h2 class="pw-step-title">Scan with your app</h2>
+                        <p class="pw-step-sub mb-3">In your authenticator, tap <strong>+</strong> and scan. Can't scan? Enter this key instead:</p>
+                        <div class="d-flex align-items-center gap-2">
+                            <code class="pw-mono flex-grow-1 p-2 rounded-3 text-break" style="background:var(--pw-surface-2);color:var(--pw-text)" id="pwSecret">{{ twofa.secret_key }}</code>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" data-pw-copy="pwSecret" aria-label="Copy key"><i class="far fa-copy"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <form method="post" action="{% url 'userauths:two_factor_enable' %}" class="mt-4 pt-4 border-top">
+                    {% csrf_token %}
+                    <div class="pw-step-count">Step 3</div>
+                    <h2 class="pw-step-title">Enter the 6-digit code</h2>
+                    <p class="pw-step-sub mb-3">This confirms your app is linked. 2FA turns on only after this succeeds.</p>
+                    <input type="text" name="code" class="form-control form-control-lg code-input" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" maxlength="7" placeholder="000000" required autofocus>
+                    <div class="pw-flow-actions">
+                        <a href="{% url 'userauths:security_dashboard' %}" class="btn btn-outline-secondary btn-lg btn-pill">Cancel</a>
+                        <span class="pw-spacer"></span>
+                        <button type="submit" class="btn btn-ink-green btn-lg btn-pill"><i class="fas fa-shield-halved me-2"></i>Verify &amp; turn on</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <aside class="pw-flow-aside">
+            <div class="pw-panel pw-summary always">
+                <div class="pw-summary-title d-flex justify-content-between align-items-center">Backup codes <button type="button" class="btn btn-outline-secondary btn-sm" data-pw-copy="pwBackup"><i class="far fa-copy me-1"></i>Copy</button></div>
+                <p class="small text-muted">Each works once if you lose your phone. Store them somewhere safe.</p>
+                <div id="pwBackup" class="d-grid gap-2 pw-mono" style="grid-template-columns: 1fr 1fr">
+                    {% for c in backup_codes %}<span class="text-center p-2 rounded-3" style="background:var(--pw-surface-2);color:var(--pw-text)">{{ c }}</span>{% endfor %}
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+{% endblock %}

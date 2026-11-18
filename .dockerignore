@@ -120,3 +120,11 @@ yarn-error.log*
 # Backup files
 *.orig
 *.rej
+
+# Repo areas not needed inside the application image
+infrastructure/
+monitoring/
+scripts/
+docker/nginx/
+docker/requirements-prod.txt
+application/django-source/db.sqlite3

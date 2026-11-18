@@ -1,0 +1,79 @@
+    <nav class="navbar navbar-expand-lg pw-nav">
+        <div class="container-xl px-3 px-lg-4">
+            <a class="navbar-brand pw-brand me-4" href="{% url 'core:home' %}">
+                <span class="pw-logo"><i class="fas fa-wallet"></i></span>PayWay
+            </a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                    aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <i class="fas fa-bars"></i>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto gap-lg-1">
+                    {% if user.is_authenticated %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'core:dashboard' %}">Dashboard</a>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Payments</a>
+                            <ul class="dropdown-menu">
+                                <li><h6 class="dropdown-header">Move money</h6></li>
+                                <li><a class="dropdown-item" href="{% url 'account:money_transfer' %}"><i class="fas fa-paper-plane me-2"></i>Send money</a></li>
+                                <li><a class="dropdown-item" href="{% url 'account:create_payment_request' %}"><i class="fas fa-hand-holding-dollar me-2"></i>Request money</a></li>
+                                <li><a class="dropdown-item" href="{% url 'account:search_account' %}"><i class="fas fa-magnifying-glass me-2"></i>Find account</a></li>
+                                <li><a class="dropdown-item" href="{% url 'account:international_transfers' %}"><i class="fas fa-globe me-2"></i>International</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header">History &amp; cards</h6></li>
+                                <li><a class="dropdown-item" href="{% url 'account:transactions' %}"><i class="fas fa-clock-rotate-left me-2"></i>Transactions</a></li>
+                                <li><a class="dropdown-item" href="{% url 'account:payment_requests' %}"><i class="fas fa-list-check me-2"></i>Payment requests</a></li>
+                                <li><a class="dropdown-item" href="{% url 'account:credit_cards' %}"><i class="fas fa-credit-card me-2"></i>Cards</a></li>
+                            </ul>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Account</a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{% url 'account:account_info' %}"><i class="fas fa-circle-user me-2"></i>Profile</a></li>
+                                <li><a class="dropdown-item" href="{% url 'account:kyc' %}"><i class="fas fa-id-card me-2"></i>KYC verification</a></li>
+                                <li><a class="dropdown-item" href="{% url 'account:notifications' %}"><i class="fas fa-bell me-2"></i>Notifications</a></li>
+                            </ul>
+                        </li>
+                    {% else %}
+                        <li class="nav-item"><a class="nav-link" href="{% url 'core:home' %}#features">Product</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{% url 'core:home' %}#security">Security</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{% url 'core:home' %}#how">How it works</a></li>
+                    {% endif %}
+                </ul>
+
+                <ul class="navbar-nav align-items-lg-center gap-2">
+                    {% if user.is_authenticated %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle pw-icon-btn" id="pwNotifToggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Notifications">
+                                <i class="far fa-bell"></i>
+                                {% if unread_notifications_count > 0 %}<span class="pw-dot" id="pwNotifBadge">{{ unread_notifications_count }}</span>{% endif %}
+                            </a>
+                            {% include 'partials/_notif_menu.html' %}
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <span class="pw-avatar">{{ user.username|slice:":1" }}</span>
+                                <span class="text-dark">{{ user.username }}</span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><h6 class="dropdown-header">Signed in as</h6></li>
+                                <li class="px-2 pb-2 small text-dark text-truncate" style="max-width: 15rem;">{{ user.email }}</li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{% url 'account:account_info' %}"><i class="fas fa-circle-user me-2"></i>Profile</a></li>
+                                <li><a class="dropdown-item" href="{% url 'account:notifications' %}"><i class="fas fa-bell me-2"></i>Notifications</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-danger" href="{% url 'userauths:logout' %}"><i class="fas fa-arrow-right-from-bracket me-2"></i>Sign out</a></li>
+                            </ul>
+                        </li>
+                    {% else %}
+                        <li class="nav-item"><a class="nav-link" href="{% url 'userauths:login' %}">Sign in</a></li>
+                        <li class="nav-item"><a class="btn btn-primary btn-sm px-3" href="{% url 'userauths:register' %}">Open an account</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>

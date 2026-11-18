@@ -1,0 +1,30 @@
+                            <div class="dropdown-menu dropdown-menu-end p-0" style="width: min(380px, 92vw);">
+                                <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+                                    <span class="fw-semibold text-dark small">Notifications</span>
+                                    <a href="{% url 'account:notifications' %}" class="small">View all</a>
+                                </div>
+                                <div class="p-1">
+                                {% if recent_notifications %}
+                                    {% for notification in recent_notifications %}
+                                        <a class="dropdown-item align-items-start py-2 {% if notification.status == 'unread' %}bg-body-tertiary{% endif %}" href="{% url 'account:notifications' %}">
+                                            <span class="pw-icon flex-shrink-0 me-3" style="width:32px;height:32px;font-size:.8rem;">
+                                                {% if notification.notification_type == 'transaction' %}<i class="fas fa-arrow-right-arrow-left"></i>
+                                                {% elif notification.notification_type == 'payment_request' %}<i class="fas fa-hand-holding-dollar"></i>
+                                                {% elif notification.notification_type == 'kyc' %}<i class="fas fa-id-card"></i>
+                                                {% elif notification.notification_type == 'security' %}<i class="fas fa-shield-halved"></i>
+                                                {% else %}<i class="fas fa-circle-info"></i>{% endif %}
+                                            </span>
+                                            <span class="d-block text-wrap">
+                                                <span class="d-block fw-medium text-dark">{{ notification.title }}</span>
+                                                <span class="d-block text-muted small">{{ notification.message|truncatechars:60 }}</span>
+                                                <span class="d-block text-muted" style="font-size:.7rem;">{{ notification.created_at|timesince }} ago</span>
+                                            </span>
+                                        </a>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="px-3 py-4 text-center text-muted small">
+                                        <i class="far fa-bell d-block mb-2 fs-5"></i>You're all caught up
+                                    </div>
+                                {% endif %}
+                                </div>
+                            </div>

@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% load pw_forms humanize %}
+{% block title %}Request money — PayWay{% endblock %}
+
+{% block content %}
+<div class="container-xl px-3 px-lg-4 pw-page">
+    <div class="pw-flow-head">
+        <div>
+            <a href="{% url 'account:payment_requests' %}" class="pw-back-link"><i class="fas fa-arrow-left"></i>Requests</a>
+            <h1>Request money</h1>
+            <p>Ask someone to pay you. They'll get a notification and can settle in one tap.</p>
+        </div>
+        <a href="{% url 'account:payment_requests' %}" class="btn btn-outline-secondary"><i class="fas fa-list me-2"></i>All requests</a>
+    </div>
+
+    <div class="pw-flow">
+        <div class="pw-flow-main">
+            {% pw_stepper "Who|Amount|Review|Sent" 1 flow=True %}
+            <form method="post" class="pw-flow-card" data-pw-flow novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="stage" value="details">
+                {% include 'partials/_form_errors.html' %}
+
+                <section class="pw-step">
+                    <div class="pw-step-head">
+                        <div class="pw-step-count">Step 1</div>
+                        <h2 class="pw-step-title">Who should pay you?</h2>
+                        <p class="pw-step-sub">Enter their PayWay account number.</p>
+                    </div>
+                    <div class="pw-fields">
+                        {% pw_field form.recipient_account label="Their account number" %}
+                        <a href="{% url 'account:search_account' %}" class="small"><i class="fas fa-magnifying-glass me-1"></i>Find an account by email</a>
+                    </div>
+                </section>
+
+                <section class="pw-step" hidden>
+                    <div class="pw-step-head">
+                        <div class="pw-step-count">Step 2</div>
+                        <h2 class="pw-step-title">How much, and what for?</h2>
+                        <p class="pw-step-sub">A clear note helps them recognise the request.</p>
+                    </div>
+                    <div class="pw-fields">
+                        <div class="pw-amount">{% pw_field form.amount prefix="$" hint="" %}</div>
+                        {% pw_field form.description label="What's it for?" hint="" %}
+                        {% pw_field form.expires_in_days label="Request expires in" %}
+                    </div>
+                </section>
+
+                <div class="pw-flow-actions">
+                    <button type="button" class="btn btn-outline-secondary btn-lg" data-pw-back hidden><i class="fas fa-arrow-left me-2"></i>Back</button>
+                    <span class="pw-spacer"></span>
+                    <span data-pw-count></span>
+                    <button type="button" class="btn btn-primary btn-lg" data-pw-next>Continue<i class="fas fa-arrow-right ms-2"></i></button>
+                    <button type="submit" class="btn btn-primary btn-lg" data-pw-submit hidden>Review request<i class="fas fa-arrow-right ms-2"></i></button>
+                </div>
+            </form>
+        </div>
+
+        <aside class="pw-flow-aside">
+            <div class="pw-panel pw-summary">
+                <div class="pw-summary-title">Summary</div>
+                <dl>
+                    <div><dt>From account</dt><dd data-pw-bind="recipient_account" data-pw-empty="Not set"></dd></div>
+                    <div><dt>Amount</dt><dd data-pw-bind="amount" data-pw-format="money"></dd></div>
+                    <div><dt>For</dt><dd data-pw-bind="description" data-pw-empty="—"></dd></div>
+                    <div><dt>Expires in</dt><dd data-pw-bind="expires_in_days"></dd></div>
+                </dl>
+            </div>
+            <div class="pw-panel pw-summary always">
+                <div class="pw-summary-title">Your requests</div>
+                <dl>
+                    <div><dt>Pending</dt><dd>{{ pending_count }}</dd></div>
+                    <div><dt>Paid</dt><dd>{{ paid_count }}</dd></div>
+                    <div><dt>Expired</dt><dd>{{ expired_count }}</dd></div>
+                    <div><dt>Total requested</dt><dd>${{ total_requested|floatformat:2|intcomma }}</dd></div>
+                </dl>
+            </div>
+        </aside>
+    </div>
+</div>
+{% endblock %}

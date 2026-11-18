@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+{% load pw_forms %}
+{% block title %}Security — PayWay{% endblock %}
+
+{% block content %}
+<div class="container-xl px-3 px-lg-4 pw-page">
+    <div class="pw-flow-head">
+        <div>
+            <h1 class="pw-page-title">Security</h1>
+            <p class="pw-page-sub">Monitor sign-ins, protect your devices and keep your account locked down.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'userauths:security_settings' %}" class="btn btn-ink-green btn-pill btn-lg"><i class="fas fa-gear me-2"></i>Settings</a>
+            <a href="{% url 'userauths:security_logs' %}" class="btn btn-outline-secondary btn-pill btn-lg">Security log</a>
+        </div>
+    </div>
+
+    <div class="pw-bento-grid">
+        <!-- stat row -->
+        <div class="pw-stat-card is-hero pw-span-3">
+            <div class="t">Security score <a href="{% url 'userauths:security_settings' %}" class="pw-arrow" aria-label="Improve your score"><i class="fas fa-arrow-right"></i></a></div>
+            <div class="n">{{ score }}<small>/100</small></div>
+            <div class="f"><span class="chip"><i class="fas fa-shield-halved"></i></span>{{ score_label }}</div>
+        </div>
+        <div class="pw-stat-card pw-span-3">
+            <div class="t">Active devices <a href="{% url 'userauths:device_management' %}" class="pw-arrow" aria-label="Manage devices"><i class="fas fa-arrow-right"></i></a></div>
+            <div class="n">{{ device_count }}</div>
+            <div class="f"><span class="chip">{{ trusted_count }}</span>trusted</div>
+        </div>
+        <div class="pw-stat-card pw-span-3">
+            <div class="t">Sign-ins this week <a href="{% url 'userauths:security_logs' %}" class="pw-arrow" aria-label="View sign-ins"><i class="fas fa-arrow-right"></i></a></div>
+            <div class="n">{{ week_logins }}</div>
+            <div class="f is-muted">Last 7 days</div>
+        </div>
+        <div class="pw-stat-card pw-span-3">
+            <div class="t">Failed attempts <a href="{% url 'userauths:security_logs' %}?event_type=login_failed" class="pw-arrow" aria-label="View failed attempts"><i class="fas fa-arrow-right"></i></a></div>
+            <div class="n">{{ failed_30 }}</div>
+            <div class="f {% if failed_30 %}is-bad{% else %}is-muted{% endif %}">{% if failed_30 %}Review recent activity{% else %}None in 30 days{% endif %}</div>
+        </div>
+
+        <!-- activity -->
+        <section class="pw-panel pw-span-5">
+            <div class="pw-panel-head"><h2 class="pw-panel-title fs-5">Sign-in activity</h2><span class="pw-select-chip">This week</span></div>
+            <div class="pw-week">
+                {% for d in week %}
+                <div class="pw-week-col{% if d.today %} is-today{% endif %}" title="{{ d.date|date:'D, M d' }}: {{ d.count }} sign-in{{ d.count|pluralize }}">
+                    <div class="pw-week-bar {% if not d.count %}pw-hatch{% elif d.today %}is-dark{% elif d.height >= 80 %}is-mid{% else %}is-light{% endif %}" style="height: {{ d.height }}%">
+                        {% if d.today and d.count %}<span class="pw-week-tip">{{ d.count }}</span>{% endif %}
+                    </div>
+                    <span class="pw-week-label">{{ d.label }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- 2FA reminder -->
+        <section class="pw-panel pw-span-3 d-flex flex-column">
+            <h2 class="pw-panel-title fs-5">Two-factor</h2>
+            {% if twofa and twofa.is_enabled %}
+                <div class="pw-reminder-title">Authenticator app is on</div>
+                <p class="pw-reminder-sub">{% if twofa.last_used %}Last used {{ twofa.last_used|timesince }} ago{% else %}Codes are required at every sign-in{% endif %}</p>
+                <a href="{% url 'userauths:two_factor_disable' %}" class="btn btn-outline-secondary btn-pill btn-lg mt-auto">Turn off 2FA</a>
+            {% else %}
+                <div class="pw-reminder-title">Protect sign-ins with codes</div>
+                <p class="pw-reminder-sub">Use any authenticator app. It works offline in about a minute.</p>
+                <a href="{% url 'userauths:two_factor_setup' %}" class="btn btn-ink-green btn-pill btn-lg mt-auto"><i class="fas fa-key me-2"></i>Turn on 2FA</a>
+            {% endif %}
+        </section>
+
+        <!-- devices -->
+        <section class="pw-panel pw-span-4">
+            <div class="pw-panel-head">
+                <h2 class="pw-panel-title fs-5">Devices</h2>
+                <a href="{% url 'userauths:device_management' %}" class="btn btn-outline-secondary btn-pill btn-sm">Manage</a>
+            </div>
+            <div class="pw-list">
+                {% for dv in devices %}
+                <div class="pw-list-item">
+                    <span class="pw-list-icon {% cycle 'tone-blue' 'tone-violet' 'tone-amber' 'tone-brand' %}"><i class="fas {% if dv.device_type == 'mobile' %}fa-mobile-screen{% elif dv.device_type == 'tablet' %}fa-tablet-screen-button{% else %}fa-laptop{% endif %}"></i></span>
+                    <div class="pw-list-body">
+                        <div class="pw-list-t">{{ dv.device_name }}</div>
+                        <div class="pw-list-s">{{ dv.browser|default:"Browser" }} · {{ dv.last_used|timesince }} ago</div>
+                    </div>
+                    <span class="pw-tag {% if dv.is_trusted %}done{% else %}progress{% endif %}">{% if dv.is_trusted %}Trusted{% else %}New{% endif %}</span>
+                </div>
+                {% empty %}
+                <p class="pw-muted-note mt-0">No devices recorded yet.</p>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- recent events -->
+        <section class="pw-panel pw-span-5">
+            <div class="pw-panel-head">
+                <h2 class="pw-panel-title fs-5">Recent events</h2>
+                <a href="{% url 'userauths:security_logs' %}" class="btn btn-outline-secondary btn-pill btn-sm">View all</a>
+            </div>
+            <div class="pw-list">
+                {% for log in recent_logs %}
+                <div class="pw-list-item">
+                    {% with t=log.event_type %}
+                    <span class="pw-list-icon {% if 'failed' in t or 'blocked' in t or 'locked' in t or 'suspicious' in t %}tone-amber{% elif 'success' in t or 'enabled' in t or 'used' in t or 'trusted' in t %}tone-brand{% else %}tone-blue{% endif %}">
+                        <i class="fas {% if 'failed' in t or 'blocked' in t %}fa-triangle-exclamation{% elif 'login' in t %}fa-right-to-bracket{% elif '2fa' in t %}fa-key{% elif 'device' in t %}fa-laptop{% elif 'password' in t %}fa-lock{% else %}fa-shield-halved{% endif %}"></i>
+                    </span>
+                    <div class="pw-list-body">
+                        <div class="pw-list-t">{{ log.get_event_type_display }}</div>
+                        <div class="pw-list-s">{{ log.timestamp|timesince }} ago · {{ log.ip_address }}</div>
+                    </div>
+                    <span class="pw-tag {% if 'failed' in t or 'blocked' in t or 'suspicious' in t %}pending{% elif log.risk_score >= 50 %}progress{% else %}done{% endif %}">Risk {{ log.risk_score|floatformat:0 }}</span>
+                    {% endwith %}
+                </div>
+                {% empty %}
+                <p class="pw-muted-note mt-0">No security events yet.</p>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- protection gauge -->
+        <section class="pw-panel pw-span-4">
+            <h2 class="pw-panel-title fs-5 mb-2">Protection checklist</h2>
+            {% pw_gauge checks_pct 0 checks_pending value=checks_value caption="Protected" uid="sec" %}
+            <div class="pw-list mt-2">
+                {% for c in checks %}
+                <div class="pw-list-item py-1">
+                    <span class="pw-list-icon {% if c.done %}tone-brand{% else %}pw-hatch{% endif %}" style="width:24px;height:24px;border-radius:999px;font-size:.6rem">{% if c.done %}<i class="fas fa-check"></i>{% endif %}</span>
+                    <div class="pw-list-body"><div class="pw-list-t fs-6 fw-normal">{{ c.label }}</div></div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- session tracker -->
+        <section class="pw-dark-card pw-span-3 d-flex flex-column">
+            <div class="k">Current session</div>
+            <div class="v" id="pwSession" data-since="{{ user.last_login|date:'c' }}">00:00:00</div>
+            <div class="small" style="color:rgba(255,255,255,.7)">Signed in {{ user.last_login|date:"M d, H:i" }}</div>
+            <div class="d-flex justify-content-center gap-3 mt-auto pt-3">
+                <a href="{% url 'userauths:device_management' %}" class="pw-round-btn light" aria-label="Devices"><i class="fas fa-laptop"></i></a>
+                <a href="{% url 'userauths:logout' %}" class="pw-round-btn danger" aria-label="Sign out"><i class="fas fa-power-off"></i></a>
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const el = document.getElementById('pwSession');
+    if (!el || !el.dataset.since) return;
+    const since = new Date(el.dataset.since).getTime();
+    const pad = n => String(n).padStart(2, '0');
+    const tick = () => {
+        const s = Math.max(0, Math.floor((Date.now() - since) / 1000));
+        el.textContent = `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`;
+    };
+    tick(); setInterval(tick, 1000);
+})();
+</script>
+{% endblock %}

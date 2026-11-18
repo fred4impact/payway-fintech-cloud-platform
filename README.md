@@ -1,260 +1,300 @@
-# 💳 PayWay - Digital Payment Platform
+# Payway – Enterprise FinTech Cloud Platform
 
-A secure, modern digital payment platform built with Django, featuring user authentication, KYC verification, and AI-powered fraud detection.
+**An AWS Cloud DevOps Engineering Project**
 
-## 📸 Screenshots
+[![AWS](https://img.shields.io/badge/Cloud-AWS-orange)](https://aws.amazon.com/)
+[![Python](https://img.shields.io/badge/Language-Python-blue)](https://www.python.org/)
+[![Django](https://img.shields.io/badge/Framework-Django-green)](https://www.djangoproject.com/)
+[![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-blue)](https://www.postgresql.org/)
+[![Terraform](https://img.shields.io/badge/IaC-Terraform-purple)](https://www.terraform.io/)
+[![Docker](https://img.shields.io/badge/Containers-Docker-blue)](https://www.docker.com/)
 
-| Home | Dashboard | Login | KYC |
+## 1. Project Overview
 
+Payway is a FinTech application being developed into an enterprise-style, cloud-hosted platform using Amazon Web Services (AWS).
 
+The project focuses on transforming an existing Django and PostgreSQL application into a secure, scalable, automated and observable cloud environment.
 
- ![Home](screenshots/home.png) 
- ![Dashboard](screenshots/dashboard.png) 
- ![Login](screenshots/login.png) 
- ![KYC](screenshots/kyc.png) 
+Beyond application deployment, the project demonstrates practical Cloud Engineering and DevOps capabilities, including Infrastructure as Code (IaC), containerisation, CI/CD automation, cloud networking, security engineering, monitoring and operational resilience.
 
-*Add your app screenshots to the `screenshots/` folder. Use the filenames above or update the paths in this section.*
+The objective is to demonstrate how a financial technology application can be deployed and operated using modern cloud engineering practices.
 
-## 🚀 Features
+**Project status:** Cloud transformation and DevOps implementation in progress.
 
-### ✅ Completed (Sprint 1-2)
-- **User Authentication System**
-  - Custom user model with email as primary identifier
-  - User registration and login
-  - Secure logout functionality
-  - Password validation and security
+## 2. Project Objectives
 
-- **Account Management**
-  - Automatic account creation for new users
-  - Unique account number generation
-  - Account balance tracking
-  - Multiple account types (Savings, Checking, Business)
+The key objectives are to:
 
-- **KYC (Know Your Customer) System**
-  - Comprehensive identity verification
-  - Document upload (ID, Proof of Address, Selfie)
-  - AI-ready verification fields
-  - Status tracking and management
+- Deploy the existing Payway application to AWS.
+- Establish a secure, production-style cloud architecture.
+- Containerise the application using Docker.
+- Provision cloud infrastructure using Terraform.
+- Automate application delivery through CI/CD.
+- Implement secure identity and access management.
+- Deploy and manage PostgreSQL using Amazon RDS.
+- Establish application monitoring, logging and alerting.
+- Introduce backup, recovery and deployment rollback procedures.
+- Demonstrate cloud cost management and operational best practices.
 
-- **Admin Interface**
-  - Beautiful Jazzmin admin theme
-  - Custom admin configurations
-  - User and account management
-  - KYC verification management
+## 3. Proposed Cloud Architecture
 
-- **Modern UI/UX**
-  - Bootstrap 5 responsive design
-  - Font Awesome icons
-  - Custom CSS styling
-  - Interactive JavaScript features
+The target architecture uses AWS managed services and a three-tier application design.
 
-## 🛠️ Technology Stack
+### Application tier
 
-- **Backend**: Django 5.2.5
-- **Database**: SQLite (development), PostgreSQL (production ready)
-- **Frontend**: Bootstrap 5, Font Awesome
-- **Admin**: Django Jazzmin
-- **Forms**: Django Crispy Forms
-- **Authentication**: Custom user model
-- **File Upload**: Pillow for image processing
+- Existing Django application.
+- Docker containerisation.
+- Amazon ECS with AWS Fargate.
+- Application Load Balancer.
+- Health checks and service scaling.
 
-## 📋 Prerequisites
+### Data tier
 
-- Python 3.8+
-- pip (Python package installer)
-- Git
+- Amazon RDS for PostgreSQL.
+- Private database subnets.
+- Encrypted database storage.
+- Automated database backups.
+- Restricted database access.
 
-## 🚀 Quick Start
+### Networking tier
 
-### 1. Clone the Repository
-```bash
-git clone <repository-url>
-cd payway-django-app
+- Amazon Virtual Private Cloud (VPC).
+- Public and private subnets across Availability Zones.
+- Internet Gateway.
+- NAT Gateway or cost-optimised outbound connectivity.
+- Security Groups.
+- Application Load Balancer.
+
+### Storage and secrets
+
+- Amazon S3 where application file storage is required.
+- AWS Secrets Manager for application credentials.
+- AWS KMS encryption where appropriate.
+
+## 4. Technology Stack
+
+| Category | Technology |
+|---|---|
+| Cloud provider | Amazon Web Services |
+| Application | Python / Django |
+| Database | PostgreSQL |
+| Infrastructure as Code | Terraform |
+| Containerisation | Docker |
+| Container orchestration | Amazon ECS Fargate |
+| Container registry | Amazon ECR |
+| CI/CD | GitHub Actions |
+| Cloud networking | Amazon VPC |
+| Database hosting | Amazon RDS |
+| Secrets management | AWS Secrets Manager |
+| Monitoring | Amazon CloudWatch |
+| Identity and access | AWS IAM |
+| Source control | GitHub |
+
+## 5. DevOps Implementation
+
+### Infrastructure as Code
+
+Terraform will be used to provision and manage the AWS environment.
+
+The infrastructure will be organised into reusable and maintainable modules.
+
+Planned resources include:
+
+- VPC and subnet architecture.
+- Routing and security groups.
+- ECS cluster and services.
+- ECR repositories.
+- Application Load Balancer.
+- RDS PostgreSQL.
+- IAM roles and policies.
+- CloudWatch monitoring resources.
+
+### Containerisation
+
+The Django application will be packaged into Docker containers.
+
+Docker Compose will support local development and integration testing.
+
+Amazon ECR will store versioned container images.
+
+### CI/CD Automation
+
+GitHub Actions will automate the application delivery process.
+
+The proposed pipeline will include:
+
+1. Source code checkout.
+2. Dependency installation.
+3. Django automated tests.
+4. Code quality checks.
+5. Dependency vulnerability scanning.
+6. Docker image build.
+7. Container vulnerability scanning.
+8. Publishing images to Amazon ECR.
+9. Deployment to Amazon ECS.
+10. Deployment verification and health checks.
+
+AWS authentication will use GitHub Actions OIDC with temporary AWS credentials.
+
+## 6. Security Engineering
+
+Security is a core consideration throughout the platform.
+
+Planned security controls include:
+
+- Least-privilege IAM permissions.
+- Private application and database networking.
+- Security Group restrictions.
+- Encrypted database storage.
+- Secure secrets management.
+- HTTPS traffic encryption.
+- Dependency and container image scanning.
+- Restricted CI/CD deployment permissions.
+- No hardcoded application credentials.
+- Synthetic demonstration data instead of real customer information.
+
+## 7. Monitoring and Observability
+
+Amazon CloudWatch will provide operational visibility into the application and infrastructure.
+
+Monitoring will cover:
+
+- ECS task health.
+- CPU and memory utilisation.
+- Application logs.
+- Application Load Balancer health.
+- HTTP errors.
+- Database connectivity.
+- Application availability.
+- Deployment failures.
+
+CloudWatch alarms will be configured for important operational conditions.
+
+## 8. Availability and Disaster Recovery
+
+The project will demonstrate production-oriented resilience practices.
+
+These include:
+
+- Multi-AZ network design.
+- Application health checks.
+- ECS service recovery.
+- RDS automated backups.
+- Documented database restoration.
+- Application deployment rollback.
+- Infrastructure recreation through Terraform.
+
+The initial environment will be cost-conscious. Higher-availability features will be evaluated as separate production enhancements.
+
+## 9. Repository Structure
+
+The repository is organised as follows:
+
+```text
+payway-fintech-cloud-platform/
+│
+├── application/
+│   └── django-source/
+│
+├── infrastructure/
+│   └── terraform/
+│       ├── modules/
+│       └── environments/
+│
+├── docker/
+│
+├── .github/
+│   └── workflows/
+│
+├── monitoring/
+│
+├── scripts/
+│
+├── docs/
+│   ├── architecture/
+│   ├── deployment/
+│   ├── security/
+│   └── disaster-recovery/
+│
+├── Dockerfile
+├── docker-compose.yml
+├── requirements.txt
+├── manage.py
+└── README.md
 ```
 
-### 2. Create Virtual Environment
-```bash
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
+| Path | Contents |
+|---|---|
+| `application/django-source/` | Django project: `payway` (settings, URLs), apps `core`, `account`, `userauths`, plus `templates/` and `static/` |
+| `infrastructure/terraform/` | Terraform `modules/` (reusable building blocks) and `environments/` (per-environment stacks) |
+| `docker/` | Container entrypoint, nginx configs, production requirements |
+| `.github/workflows/` | DevSecOps CI/CD pipeline |
+| `monitoring/` | Prometheus, Grafana and k6 load tests (`monitoring/k6/`) |
+| `scripts/` | Developer `Makefile` (`make -f scripts/Makefile <target>`) and manual test scripts |
+| `docs/` | Architecture, deployment, security and disaster-recovery documentation |
 
-### 3. Install Dependencies
-```bash
-pip install -r requirements.txt
-```
+`manage.py` at the root adds `application/django-source` to the Python path, so every Django command still runs from the repository root, e.g. `python manage.py runserver` or `docker compose up -d`.
 
-### 4. Environment Setup
-Create a `.env` file in the project root:
-```env
-SECRET_KEY=your-secret-key-here
-DEBUG=True
-ALLOWED_HOSTS=localhost,127.0.0.1
-```
+## 10. Implementation Roadmap
 
-### 5. Database Setup
-```bash
-python manage.py makemigrations
-python manage.py migrate
-```
+| Phase | Deliverable |
+|---|---|
+| 1 | Application assessment and preparation |
+| 2 | Docker containerisation |
+| 3 | Terraform AWS infrastructure |
+| 4 | AWS networking and security |
+| 5 | Amazon RDS PostgreSQL |
+| 6 | ECS Fargate application deployment |
+| 7 | GitHub Actions CI/CD |
+| 8 | Security scanning and secrets management |
+| 9 | Monitoring and alerting |
+| 10 | Backup, recovery and final demonstration |
 
-### 6. Create Superuser
-```bash
-python manage.py createsuperuser
-```
+## 11. Project Demonstration
 
-### 7. Run Development Server
-```bash
-python manage.py runserver
-```
+The final project will provide an interactive demonstration of the complete cloud deployment lifecycle.
 
-### 8. Access the Application
-- **Main Site**: http://127.0.0.1:8000/
-- **Admin Panel**: http://127.0.0.1:8000/admin/
+A reviewer will be able to:
 
-### Running with Docker
-```bash
-make up          # Start services (web, db, redis, nginx)
-make migrate     # Apply migrations to PostgreSQL (required after first up or fresh DB)
-make collectstatic   # Collect static files (optional)
-```
-For first-time setup, use **`make setup`** — it builds, starts services, runs migrations, and collects static files. If you only run `make up`, run **`make migrate`** so the database has all tables (otherwise you may see "relation does not exist" / 500 on register or login).
+- Access the deployed Payway application.
+- Review the AWS architecture.
+- Inspect Terraform infrastructure code.
+- Review GitHub Actions deployment workflows.
+- Observe application deployment and version changes.
+- Access operational monitoring dashboards.
+- Review security controls.
+- Understand the recovery and rollback process.
 
-## 📁 Project Structure
+## 12. Business and Engineering Value
 
-```
-payway-django-app/
-├── payway/                 # Main Django project
-│   ├── settings.py        # Django settings
-│   ├── urls.py           # Main URL configuration
-│   └── wsgi.py           # WSGI configuration
-├── core/                  # Core app
-│   ├── views.py          # Home and dashboard views
-│   └── urls.py           # Core URL patterns
-├── userauths/            # User authentication app
-│   ├── models.py         # Custom User model
-│   ├── views.py          # Auth views
-│   ├── forms.py          # Registration/login forms
-│   └── urls.py           # Auth URL patterns
-├── account/              # Account management app
-│   ├── models.py         # Account and KYC models
-│   ├── views.py          # Account views
-│   ├── forms.py          # KYC forms
-│   ├── signals.py        # Django signals
-│   └── urls.py           # Account URL patterns
-├── templates/            # HTML templates
-│   ├── base.html         # Base template
-│   ├── core/             # Core templates
-│   ├── userauths/        # Auth templates
-│   └── account/          # Account templates
-├── static/               # Static files
-│   ├── css/              # Custom CSS
-│   ├── js/               # Custom JavaScript
-│   └── images/           # Images
-├── media/                # User uploaded files
-├── requirements.txt      # Python dependencies
-└── README.md            # This file
-```
+This project demonstrates how existing application workloads can be modernised through cloud adoption and DevOps automation.
 
-## 🔧 Configuration
+Expected engineering benefits include:
 
-### Django Settings
-The main settings are in `payway/settings.py`:
+- Repeatable infrastructure provisioning.
+- More consistent application deployments.
+- Improved security and operational visibility.
+- Reduced manual deployment activities.
+- Better infrastructure maintainability.
+- Improved recovery and troubleshooting capabilities.
+- A documented foundation for future scalability.
 
-- **Custom User Model**: `AUTH_USER_MODEL = 'userauths.User'`
-- **Jazzmin Admin**: Configured with PayWay branding
-- **Static/Media Files**: Properly configured for development
-- **Crispy Forms**: Bootstrap 5 template pack
+## 13. Disclaimer
 
-### Admin Configuration
-- **Site Title**: PayWay Admin
-- **Brand Colors**: Green theme
-- **Icons**: Font Awesome icons for all models
-- **Search**: Enabled for User and Account models
+This repository is an engineering showcase and demonstration environment.
 
-## 👤 User Management
+The proposed architecture and features will be implemented and validated progressively. The presence of a feature in this README does not imply that it has already been deployed or independently certified.
 
-### Registration Process
-1. User visits `/auth/register/`
-2. Fills out registration form with email, username, password
-3. Account is automatically created via Django signals
-4. User is redirected to dashboard
-
-### Login Process
-1. User visits `/auth/login/`
-2. Enters email and password
-3. Authentication using email as username
-4. Redirected to dashboard on success
-
-### KYC Process
-1. User completes KYC form at `/account/kyc/`
-2. Uploads required documents
-3. Admin can review and approve/reject
-4. AI verification fields ready for integration
-
-## 🔒 Security Features
-
-- **Custom User Model**: Email-based authentication
-- **Password Validation**: Django's built-in validators
-- **CSRF Protection**: Enabled on all forms
-- **Session Management**: Secure session handling
-- **File Upload Security**: Validated file types and sizes
-
-## 🎨 UI/UX Features
-
-- **Responsive Design**: Mobile-first approach
-- **Modern Interface**: Clean, professional design
-- **Interactive Elements**: Hover effects, animations
-- **User Feedback**: Success/error messages
-- **Loading States**: Form submission indicators
-
-## 🚀 Deployment Ready
-
-The application is configured for easy deployment:
-
-- **Environment Variables**: Using python-decouple
-- **Static Files**: Configured for production
-- **Media Files**: Proper upload handling
-- **Database**: Ready for PostgreSQL migration
-
-## 🔮 Future Features (Next Sprints)
-
-### Sprint 3-4: Core Payment Features
-- Money transfer functionality
-- Transaction history
-- Payment requests
-- Real-time notifications
-
-### Sprint 5-6: Advanced Features
-- Credit card management
-- International transfers
-- Advanced security features
-- API endpoints
-
-### Sprint 7-8: AI Integration
-- Fraud detection
-- Document verification
-- Behavioral analysis
-- Smart notifications
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## 📝 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🆘 Support
-
-For support and questions:
-- Create an issue in the repository
-- Contact the development team
-- Check the documentation
+No real customer information, payment credentials or production financial data should be used in the demonstration environment.
 
 ---
 
-**PayWay** - Secure Digital Payments for Everyone 💳 
+**Project:** Payway FinTech Cloud Platform  
+**Cloud Provider:** Amazon Web Services  
+**Application Framework:** Django  
+**Database:** PostgreSQL  
+**Infrastructure Management:** Terraform  
+**Automation:** GitHub Actions  
+**Deployment Platform:** Amazon ECS Fargate
+
+*Building secure, automated and observable cloud platforms for modern financial technology applications.*

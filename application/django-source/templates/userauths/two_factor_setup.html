@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% load pw_forms %}
+{% block title %}Set up two-factor — PayWay{% endblock %}
+{% block content %}
+<div class="container-xl px-3 px-lg-4 pw-page">
+    <div class="pw-flow-head">
+        <div>
+            <a href="{% url 'userauths:security_dashboard' %}" class="pw-back-link"><i class="fas fa-arrow-left"></i>Security</a>
+            <h1 class="pw-page-title">Two-factor authentication</h1>
+            <p class="pw-page-sub">Add a second step at sign-in so a stolen password isn't enough.</p>
+        </div>
+    </div>
+    <div class="pw-flow">
+        <div class="pw-flow-main">
+            {% pw_stepper "Method|Scan|Verify|Done" 1 %}
+            <form method="post" class="pw-flow-card">
+                {% csrf_token %}
+                {% include 'partials/_form_errors.html' %}
+                <input type="hidden" name="method" value="totp">
+                <div class="pw-step-head">
+                    <div class="pw-step-count">Step 1</div>
+                    <h2 class="pw-step-title">Choose how you'll get codes</h2>
+                    <p class="pw-step-sub">An authenticator app generates a new 6-digit code every 30 seconds, even offline.</p>
+                </div>
+                <div class="pw-option-grid">
+                    <label class="pw-option">
+                        <input type="radio" checked disabled>
+                        <span class="pw-tile pw-tile-sm tone-brand"><i class="fas fa-mobile-screen"></i></span>
+                        <span class="flex-grow-1"><span class="t d-block">Authenticator app <span class="pw-optional">Recommended</span></span>
+                        <span class="s d-block">Google Authenticator, Microsoft Authenticator, 1Password, Authy…</span></span>
+                    </label>
+                    <label class="pw-option opacity-50" aria-disabled="true">
+                        <input type="radio" disabled>
+                        <span class="pw-tile pw-tile-sm tone-blue"><i class="fas fa-message"></i></span>
+                        <span class="flex-grow-1"><span class="t d-block">Text message <span class="pw-optional">Coming soon</span></span>
+                        <span class="s d-block">Needs an SMS provider, not available yet</span></span>
+                    </label>
+                </div>
+                <div class="pw-note"><i class="fas fa-circle-info"></i><span>You'll also get 10 one-time backup codes in case you lose your phone.</span></div>
+                <div class="pw-flow-actions">
+                    <a href="{% url 'userauths:security_dashboard' %}" class="btn btn-outline-secondary btn-lg btn-pill">Cancel</a>
+                    <span class="pw-spacer"></span>
+                    <button type="submit" class="btn btn-ink-green btn-lg btn-pill">Continue<i class="fas fa-arrow-right ms-2"></i></button>
+                </div>
+            </form>
+        </div>
+        <aside class="pw-flow-aside">
+            <div class="pw-stat-card is-hero">
+                <div class="t">Why it matters <span class="pw-arrow" aria-hidden="true"><i class="fas fa-arrow-right"></i></span></div>
+                <div class="n">99<small>%</small></div>
+                <div class="f"><span class="chip"><i class="fas fa-shield-halved"></i></span>of automated account takeovers stopped by 2FA</div>
+            </div>
+            <div class="pw-panel">
+                <h2 class="pw-panel-title fs-6 mb-1">How it works</h2>
+                <div class="pw-list">
+                    <div class="pw-list-item"><span class="pw-list-icon tone-brand"><i class="fas fa-qrcode"></i></span><div class="pw-list-body"><div class="pw-list-t">Scan a QR code</div><div class="pw-list-s">Links PayWay to your app</div></div></div>
+                    <div class="pw-list-item"><span class="pw-list-icon tone-blue"><i class="fas fa-keyboard"></i></span><div class="pw-list-body"><div class="pw-list-t">Enter one code</div><div class="pw-list-s">Proves the setup worked</div></div></div>
+                    <div class="pw-list-item"><span class="pw-list-icon tone-violet"><i class="fas fa-key"></i></span><div class="pw-list-body"><div class="pw-list-t">Save backup codes</div><div class="pw-list-s">For when your phone isn't handy</div></div></div>
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+{% endblock %}

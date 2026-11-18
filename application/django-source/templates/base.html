@@ -1,0 +1,132 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#fafafa">
+    <title>{% block title %}PayWay - Digital Payment Platform{% endblock %}</title>
+
+    <link rel="icon" type="image/svg+xml" href="{% static 'images/favicon.svg' %}">
+    <link rel="apple-touch-icon" href="{% static 'images/favicon.svg' %}">
+    <link rel="preload" href="{% static 'vendor/geist/Geist-Variable.woff2' %}" as="font" type="font/woff2" crossorigin>
+
+    <!-- Self-hosted vendor assets (nginx CSP only allows 'self') -->
+    <link rel="stylesheet" href="{% static 'vendor/bootstrap/bootstrap.min.css' %}">
+    <link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="{% if app_shell %}pw-app{% endif %}">
+{% if app_shell %}
+    <div class="pw-shell">
+        {% include 'partials/_sidebar.html' %}
+        <div class="pw-main">
+            <header class="pw-topbar">
+                <button class="pw-topbar-btn d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#pwSidebar" aria-controls="pwSidebar" aria-label="Open menu"><i class="fas fa-bars"></i></button>
+                <a class="pw-brand d-lg-none" href="{% url 'core:dashboard' %}"><span class="pw-logo"><i class="fas fa-wallet"></i></span></a>
+                <form class="pw-search d-none d-md-flex" action="{% url 'account:search_account' %}" method="get" role="search">
+                    <i class="fas fa-magnifying-glass"></i>
+                    <input type="search" name="search_query" id="pwSearch" placeholder="Search accounts by number or email…" aria-label="Search accounts">
+                    <kbd>⌘K</kbd>
+                </form>
+                <div class="ms-auto d-flex align-items-center gap-2">
+                    <a class="pw-topbar-btn d-md-none" href="{% url 'account:search_account' %}" aria-label="Search"><i class="fas fa-magnifying-glass"></i></a>
+                    <div class="dropdown">
+                        <a class="pw-topbar-btn position-relative" id="pwNotifToggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Notifications">
+                            <i class="far fa-bell"></i>
+                            {% if unread_notifications_count > 0 %}<span class="pw-dot" id="pwNotifBadge">{{ unread_notifications_count }}</span>{% endif %}
+                        </a>
+                        {% include 'partials/_notif_menu.html' %}
+                    </div>
+                    <div class="btn-group">
+                        <a href="{% url 'account:money_transfer' %}" class="btn btn-success"><i class="fas fa-plus me-2"></i><span class="d-none d-sm-inline">Send money</span><span class="d-sm-none">Send</span></a>
+                        <button type="button" class="btn btn-success dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" aria-label="More payment actions"></button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{% url 'account:create_payment_request' %}"><i class="fas fa-hand-holding-dollar me-2"></i>Request money</a></li>
+                            <li><a class="dropdown-item" href="{% url 'account:create_international_transfer' %}"><i class="fas fa-earth-europe me-2"></i>International transfer</a></li>
+                            <li><a class="dropdown-item" href="{% url 'account:card_funding' %}"><i class="fas fa-credit-card me-2"></i>Add money from card</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </header>
+{% else %}
+{% include 'partials/_topnav.html' %}
+{% endif %}
+
+    {% if messages %}
+        <div class="container-xl px-3 px-lg-4 mt-3">
+            {% for message in messages %}
+                <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show d-flex align-items-center gap-2" role="alert">
+                    {% if message.tags == 'success' %}<i class="fas fa-circle-check"></i>
+                    {% elif message.tags == 'error' %}<i class="fas fa-circle-exclamation"></i>
+                    {% elif message.tags == 'warning' %}<i class="fas fa-triangle-exclamation"></i>
+                    {% else %}<i class="fas fa-circle-info"></i>{% endif %}
+                    <span>{{ message }}</span>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+{% if app_shell %}
+        </div>
+    </div>
+{% else %}
+{% include 'partials/_footer.html' %}
+{% endif %}
+
+    <script src="{% static 'vendor/bootstrap/bootstrap.bundle.min.js' %}"></script>
+    <script src="{% static 'js/main.js' %}"></script>
+    <script src="{% static 'js/flow.js' %}"></script>
+
+    {% if user.is_authenticated %}
+    <script>
+        (function () {
+            let last = {{ unread_notifications_count|default:0 }};
+            function refresh() {
+                fetch('/account/notifications/count/', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.count === last) return;
+                        const toggle = document.getElementById('pwNotifToggle');
+                        let badge = document.getElementById('pwNotifBadge');
+                        if (data.count > 0) {
+                            if (!badge) {
+                                badge = document.createElement('span');
+                                badge.className = 'pw-dot';
+                                badge.id = 'pwNotifBadge';
+                                toggle.appendChild(badge);
+                            }
+                            badge.textContent = data.count;
+                        } else if (badge) {
+                            badge.remove();
+                        }
+                        last = data.count;
+                    })
+                    .catch(err => console.error('Error updating notifications:', err));
+            }
+            setInterval(refresh, 30000);
+            document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+        })();
+    </script>
+    {% endif %}
+
+    <script>
+        (function () {
+            const els = document.querySelectorAll('.pw-reveal');
+            if (!('IntersectionObserver' in window)) { els.forEach(e => e.classList.add('is-in')); return; }
+            const io = new IntersectionObserver(entries => entries.forEach(e => {
+                if (e.isIntersecting) { e.target.classList.add('is-in'); io.unobserve(e.target); }
+            }), { threshold: 0.12 });
+            els.forEach(e => io.observe(e));
+        })();
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
