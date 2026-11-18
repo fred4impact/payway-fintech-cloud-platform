@@ -302,3 +302,7 @@ jobs:
           format: table
           exit-code: 1
           severity: HIGH,CRITICAL
+          # Fail only on vulnerabilities with a released fix. Unfixed CVEs in the
+          # Debian base image can't be remediated yet; they fail the build
+          # automatically once a fix ships.
+          ignore-unfixed: true
