@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'core',
     'userauths',
     'account',
+    'risk',
 ]
 
 MIDDLEWARE = [
@@ -205,7 +206,7 @@ JAZZMIN_SETTINGS = {
     "default_icon_parents": "fas fa-chevron-circle-right",
     "default_icon_children": "fas fa-circle",
     "related_modal_active": True,
-    "custom_css": None,
+    "custom_css": "css/admin.css",  # PayWay brand theme (static/css/admin.css)
     "custom_js": None,
     "show_ui_builder": False,
     "changeform_format": "horizontal_tabs",
@@ -217,9 +218,9 @@ JAZZMIN_UI_TWEAKS = {
     "footer_small_text": False,
     "body_small_text": False,
     "brand_small_text": False,
-    "brand_colour": "navbar-success",
+    "brand_colour": False,
     "accent": "accent-teal",
-    "navbar": "navbar-dark",
+    "navbar": "navbar-white navbar-light",
     "no_navbar_border": False,
     "navbar_fixed": False,
     "layout_boxed": False,
@@ -232,7 +233,7 @@ JAZZMIN_UI_TWEAKS = {
     "sidebar_nav_compact_style": False,
     "sidebar_nav_legacy_style": False,
     "sidebar_nav_flat_style": False,
-    "theme": "cosmo",
+    "theme": "default",
     "dark_mode_theme": None,
     "button_classes": {
         "primary": "btn-primary",
@@ -248,6 +249,26 @@ JAZZMIN_UI_TWEAKS = {
 CELERY_BROKER_URL = config('REDIS_URL', default='redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_TIMEZONE = TIME_ZONE
+
+# Risk engine (risk app): fraud scoring, sign-in risk, automated KYC checks.
+# Scores run 0-100. Every automated decision is stored as a risk.RiskDecision.
+RISK = {
+    # Payments: below CHALLENGE they go through; from CHALLENGE the user confirms with a
+    # 2FA code (or their password if 2FA is off); from HOLD they wait for staff review.
+    'PAYMENT_CHALLENGE': config('RISK_PAYMENT_CHALLENGE', default=40, cast=int),
+    'PAYMENT_HOLD': config('RISK_PAYMENT_HOLD', default=75, cast=int),
+    # Sign-ins: from CHALLENGE an unusual sign-in is flagged to the user (and 2FA is never
+    # skipped); from BLOCK a sign-in without 2FA is refused.
+    'SIGNIN_CHALLENGE': config('RISK_SIGNIN_CHALLENGE', default=40, cast=int),
+    'SIGNIN_BLOCK': config('RISK_SIGNIN_BLOCK', default=85, cast=int),
+    # Users with 2FA skip the code on a device they marked trusted, if the sign-in looks normal.
+    'SKIP_2FA_ON_TRUSTED_DEVICE': config('RISK_SKIP_2FA_ON_TRUSTED_DEVICE', default=True, cast=bool),
+    # KYC: OpenCV face models (see risk/management/commands/download_kyc_models.py).
+    'KYC_MODELS_DIR': config('RISK_KYC_MODELS_DIR', default=str(BASE_DIR / 'risk' / 'ml_models')),
+    'KYC_FACE_MATCH_THRESHOLD': config('RISK_KYC_FACE_MATCH_THRESHOLD', default=0.363, cast=float),
+    # Run KYC checks on the Celery worker; falls back to running them in-request if the broker is down.
+    'KYC_ASYNC': config('RISK_KYC_ASYNC', default=True, cast=bool),
+}
 
 # Fernet key for card data at rest. Must be stable across restarts/workers, or stored
 # cards become undecryptable. Set ENCRYPTION_KEY in production (Fernet.generate_key()).

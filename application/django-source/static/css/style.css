@@ -1745,3 +1745,23 @@ a.pw-list-item:hover .pw-list-t { color: var(--pw-brand); }
 .pw-spark-box { min-width: 0; overflow: hidden; }
 .pw-spark-box canvas { display: block; max-width: 100%; }
 .pw-mini-body .pw-spark-box.sm { flex: 0 1 90px; }
+
+/* ---------- risk: payment step-up check ---------- */
+.pw-risk-challenge { margin-top: 1.25rem; padding: 1rem 1.125rem 1.125rem; border-radius: var(--pw-radius); background: #fffbeb; border: 1px solid #fde68a; }
+.pw-risk-challenge-head { display: flex; gap: .75rem; margin-bottom: .875rem; }
+.pw-risk-challenge-head strong { display: block; color: #78350f; font-size: .9375rem; }
+.pw-risk-challenge-head p { margin: .125rem 0 0; color: #92400e; font-size: .8125rem; }
+.pw-risk-challenge-icon { flex: none; width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: #fef3c7; color: var(--pw-warning); }
+.pw-risk-challenge .form-label { font-size: .8125rem; font-weight: 500; color: #78350f; }
+.pw-risk-challenge .form-control { background: #fff; max-width: 320px; }
+.pw-risk-challenge-tip { margin: .625rem 0 0; font-size: .75rem; color: #92400e; }
+
+/* ---------- dashboard: insights + forecast legend ---------- */
+.pw-legend i.line.dashed { background: repeating-linear-gradient(90deg, var(--pw-brand) 0 4px, transparent 4px 7px); }
+.pw-insights { margin-bottom: 1rem; }
+.pw-insight-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: .75rem; }
+.pw-insight { display: flex; gap: .625rem; align-items: flex-start; padding: .75rem .875rem; border-radius: var(--pw-radius); border: 1px solid var(--pw-border); background: var(--pw-surface-2); font-size: .8125rem; color: var(--pw-text-2); line-height: 1.45; }
+.pw-insight-icon { flex: none; width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; font-size: .75rem; }
+.pw-insight.tone-warn .pw-insight-icon { background: #fef3c7; color: var(--pw-warning); }
+.pw-insight.tone-info .pw-insight-icon { background: #dbeafe; color: var(--pw-info); }
+.pw-insight.tone-good .pw-insight-icon { background: var(--pw-brand-soft); color: var(--pw-brand); }

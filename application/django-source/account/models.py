@@ -254,6 +254,8 @@ class KYC(models.Model):
     # Additional fields for AI integration
     risk_score = models.FloatField(default=0.0)
     ai_flagged = models.BooleanField(default=False)
+    ai_report = models.JSONField(default=dict, blank=True, help_text='Output of the automated document and face checks')
+    ai_checked_at = models.DateTimeField(blank=True, null=True)
     
     submitted_at = models.DateTimeField(auto_now_add=True)
     verified_at = models.DateTimeField(blank=True, null=True)

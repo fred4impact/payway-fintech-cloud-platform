@@ -1,0 +1,8 @@
+<a class="pwx-goal" href="{% url g.url %}">
+    <span class="pwx-goal-icon"><i class="fas {{ g.icon }}"></i></span>
+    <span class="min-w-0">
+        <span class="pwx-goal-top"><b>{{ g.label }}</b><em>{{ g.value }}</em></span>
+        <span class="pwx-goal-bar d-block{% if g.pct < 50 %} is-warn{% endif %}" role="progressbar" aria-valuenow="{{ g.pct }}" aria-valuemin="0" aria-valuemax="100" aria-label="{{ g.label }}"><span style="width: {{ g.pct }}%"></span></span>
+        <span class="pwx-goal-sub d-block">{{ g.note }}</span>
+    </span>
+</a>

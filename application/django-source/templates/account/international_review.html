@@ -27,11 +27,12 @@
                     <div class="is-total"><dt>Total debited</dt><dd>${{ debit_usd|floatformat:2|intcomma }}</dd></div>
                 </dl>
                 <div class="pw-note"><i class="fas fa-shield-halved"></i><span>Double-check the account number. International transfers can't be recalled once the bank processes them.</span></div>
+                {% include 'risk/_challenge.html' %}
                 <div class="pw-flow-actions">
                     <form method="post">{% csrf_token %}<input type="hidden" name="stage" value="edit">{% for f in form %}{{ f.as_hidden }}{% endfor %}
                         <button type="submit" class="btn btn-outline-secondary btn-lg"><i class="fas fa-pen me-2"></i>Edit</button></form>
                     <span class="pw-spacer"></span>
-                    <form method="post">{% csrf_token %}<input type="hidden" name="stage" value="confirm">{% for f in form %}{{ f.as_hidden }}{% endfor %}
+                    <form method="post" id="pw-confirm-form">{% csrf_token %}<input type="hidden" name="stage" value="confirm">{% for f in form %}{{ f.as_hidden }}{% endfor %}
                         <button type="submit" class="btn btn-success btn-lg"><i class="fas fa-lock me-2"></i>Send ${{ debit_usd|floatformat:2|intcomma }}</button></form>
                 </div>
             </div>

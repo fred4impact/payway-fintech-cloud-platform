@@ -34,6 +34,7 @@ urlpatterns = [
     path('', include('core.urls')),
     path('auth/', include('userauths.urls')),
     path('account/', include('account.urls')),
+    path('risk/', include('risk.urls')),
     # Handle favicon.ico requests
     path('favicon.ico', RedirectView.as_view(url='/static/images/favicon.svg', permanent=True)),
 ]

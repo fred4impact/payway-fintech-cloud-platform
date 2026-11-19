@@ -89,32 +89,52 @@
         y: { grid: { color: C.border, drawTicks: false }, border: { display: false }, ticks: { padding: 8, callback: compact, maxTicksLimit: 5 } },
     };
 
-    // ---------- balance area ----------
+    // ---------- balance area (+ 14-day forecast when there's a trend to fit) ----------
     const balanceEl = document.getElementById('balanceChart');
     if (balanceEl) {
+        const F = D.forecast;
+        const n = D.balance.length;
+        const pad = arr => F ? arr.concat(F.values.map(() => null)) : arr;
+        const ahead = arr => Array(n - 1).fill(null).concat([D.balance[n - 1]], arr);
+        const datasets = [{
+            label: 'Balance',
+            data: pad(D.balance),
+            borderColor: C.brand,
+            borderWidth: 2,
+            cubicInterpolationMode: 'monotone',
+            fill: true,
+            backgroundColor: c => c.chart.chartArea ? fade(c.chart.ctx, c.chart.chartArea, C.brand) : 'transparent',
+            pointRadius: ctx => ctx.dataIndex === n - 1 ? 4 : 0,
+            pointBackgroundColor: '#fff',
+            pointBorderColor: C.brand,
+            pointBorderWidth: 2,
+            pointHoverRadius: 5,
+        }];
+        if (F) {
+            datasets.push(
+                { label: 'Forecast low', data: ahead(F.low), borderWidth: 0, pointRadius: 0, pointHoverRadius: 0, fill: false },
+                { label: 'Forecast high', data: ahead(F.high), borderWidth: 0, pointRadius: 0, pointHoverRadius: 0,
+                  fill: '-1', backgroundColor: C.brand + '14' },
+                { label: 'Forecast', data: ahead(F.values), borderColor: C.brand, borderWidth: 2, borderDash: [5, 4],
+                  pointRadius: 0, pointHoverRadius: 4, fill: false },
+            );
+        }
         new Chart(balanceEl, {
             type: 'line',
-            data: {
-                labels: D.labels,
-                datasets: [{
-                    data: D.balance,
-                    borderColor: C.brand,
-                    borderWidth: 2,
-                    cubicInterpolationMode: 'monotone',
-                    fill: true,
-                    backgroundColor: c => c.chart.chartArea ? fade(c.chart.ctx, c.chart.chartArea, C.brand) : 'transparent',
-                    pointRadius: ctx => ctx.dataIndex === D.balance.length - 1 ? 4 : 0,
-                    pointBackgroundColor: '#fff',
-                    pointBorderColor: C.brand,
-                    pointBorderWidth: 2,
-                    pointHoverRadius: 5,
-                }],
-            },
+            data: { labels: F ? D.labels.concat(F.labels) : D.labels, datasets },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
-                plugins: { legend: { display: false }, tooltip: { ...tooltip, callbacks: { label: c => moneyFull(c.parsed.y) } } },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        ...tooltip,
+                        filter: item => item.raw !== null && !item.dataset.label.startsWith('Forecast ')
+                            && !(item.dataset.label === 'Forecast' && item.dataIndex === n - 1),
+                        callbacks: { label: c => (c.dataset.label === 'Forecast' ? 'Forecast ' : '') + moneyFull(c.parsed.y) },
+                    },
+                },
                 scales: axis,
             },
         });

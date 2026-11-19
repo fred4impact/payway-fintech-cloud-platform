@@ -21,11 +21,12 @@
                     <div><dt>Current balance</dt><dd>${{ account.account_balance|floatformat:2|intcomma }}</dd></div>
                     <div class="is-total"><dt>Balance after</dt><dd>${{ balance_after|floatformat:2|intcomma }}</dd></div>
                 </dl>
+                {% include 'risk/_challenge.html' %}
                 <div class="pw-flow-actions">
                     <form method="post">{% csrf_token %}<input type="hidden" name="stage" value="edit">{% for f in form %}{{ f.as_hidden }}{% endfor %}
                         <button type="submit" class="btn btn-outline-secondary btn-lg"><i class="fas fa-pen me-2"></i>Edit</button></form>
                     <span class="pw-spacer"></span>
-                    <form method="post">{% csrf_token %}<input type="hidden" name="stage" value="confirm">{% for f in form %}{{ f.as_hidden }}{% endfor %}
+                    <form method="post" id="pw-confirm-form">{% csrf_token %}<input type="hidden" name="stage" value="confirm">{% for f in form %}{{ f.as_hidden }}{% endfor %}
                         <button type="submit" class="btn btn-success btn-lg"><i class="fas fa-lock me-2"></i>{% if direction == 'fund' %}Add{% else %}Withdraw{% endif %} ${{ amount|floatformat:2|intcomma }}</button></form>
                 </div>
             </div>

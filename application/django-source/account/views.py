@@ -11,6 +11,10 @@ import csv
 from .forms import KYCForm, AccountSearchForm, MoneyTransferForm, PaymentRequestForm, TransactionFilterForm, CreditCardForm, CardFundingForm, CardWithdrawalForm, InternationalTransferForm, SwiftCodeSearchForm, CurrencyConverterForm
 from .models import KYC, Account, Transaction, PaymentRequest, Notification, CreditCard, Currency, Bank, InternationalTransfer
 from userauths.models import User
+from risk.payments import gate_payment, link_result
+from risk.kyc import enqueue as enqueue_kyc_checks
+from .payments import (TRANSFER_FEE_RATE, transfer_fee, international_quote, execute_transfer,
+                       execute_settlement, execute_card_move, execute_international)
 
 
 @login_required
@@ -28,6 +32,7 @@ def kyc_view(request):
                 kyc = form.save(commit=False)
                 kyc.user = request.user
                 kyc.save()
+                transaction.on_commit(lambda: enqueue_kyc_checks(kyc.pk))
                 messages.success(request, 'KYC submitted successfully! We will review your documents.')
                 return redirect('account:kyc_detail')
             else:
@@ -115,9 +120,79 @@ def account_info_view(request):
     done = sum(c['done'] for c in checks)
     pct = round(done / len(checks) * 100)
 
+    # ---- money in / out, last 7 days (chart) and 30 days vs the 30 before (stats)
+    from collections import Counter
+    from core.dash import last_days, segments, split_bars, trend
+    from risk.insights import COLOURS, categorise
+    now = timezone.now()
+    in_q = models.Q(receiver=user) & (~models.Q(sender=user) | models.Q(transaction_type__in=['card_funding', 'deposit']))
+    out_q = models.Q(sender=user) & (~models.Q(receiver=user) | models.Q(transaction_type='withdrawal'))
+    days = last_days(7)
+    week_txs = completed.filter(created_at__date__gte=days[0])
+    money_in, money_out = Counter(), Counter()
+    for tx in week_txs.filter(in_q):
+        money_in[timezone.localtime(tx.created_at).date()] += float(tx.amount)
+    for tx in week_txs.filter(out_q):
+        money_out[timezone.localtime(tx.created_at).date()] += float(tx.amount)
+    chart = split_bars(days, money_in, money_out, 'Money in', 'Money out', fmt='${:,.0f}')
+
+    month, prev_month = now - timedelta(days=30), now - timedelta(days=60)
+    in_30, in_prev = sum_of(completed.filter(in_q, created_at__gte=month)), sum_of(completed.filter(in_q, created_at__gte=prev_month, created_at__lt=month))
+    out_30, out_prev = sum_of(completed.filter(out_q, created_at__gte=month)), sum_of(completed.filter(out_q, created_at__gte=prev_month, created_at__lt=month))
+    net_30, net_prev = in_30 - out_30, in_prev - out_prev
+    saved_pct = max(0, min(100, round(float(net_30) / float(in_30) * 100))) if in_30 else 0
+
+    # ---- spending by category, last 30 days
+    by_cat = Counter()
+    for tx in completed.filter(out_q, created_at__gte=month):
+        by_cat[categorise(tx.description, tx.transaction_type)] += float(tx.amount)
+    spend, spend_total = segments(by_cat.most_common(6), ['#f3b47c', '#f7c99f', '#f1ec7c', '#c6e48b', '#a6d16b', '#7cb342'])
+
+    # ---- people you pay most (quick payment)
+    people = []
+    for row in (sent.values('receiver_account__account_number', 'receiver__first_name', 'receiver__username')
+                .annotate(n=models.Count('id'), last=models.Max('created_at')).order_by('-n', '-last')[:6]):
+        people.append({'name': row['receiver__first_name'] or row['receiver__username'],
+                       'account': row['receiver_account__account_number']})
+
+    # ---- card funding limits used today (goal-tracker style)
+    day_start = timezone.localtime(now).replace(hour=0, minute=0, second=0, microsecond=0)
+    card_limits = []
+    for card in user.credit_cards.filter(status='active')[:4]:
+        used = card.funded_since(day_start)
+        pct = round(float(used) / float(card.daily_limit) * 100) if card.daily_limit else 0
+        card_limits.append({'card': card, 'used': used, 'pct': min(pct, 100),
+                            'left': max(card.daily_limit - used, Decimal('0.00'))})
+
+    missing = [c['label'] for c in checks if not c['done']]
+    stats = [
+        {'label': 'Money in', 'value': in_30, 'trend': trend(in_30, in_prev, 'up')},
+        {'label': 'Money out', 'value': out_30, 'trend': trend(out_30, out_prev, 'down')},
+        {'label': 'Net saved', 'value': net_30, 'trend': trend(net_30, net_prev, 'up') if net_prev > 0 else None},
+    ]
+    for st in stats:
+        st['abs'] = abs(st['value'])
+    if not (kyc and kyc.verification_status == 'approved'):
+        tip = {'title': 'Verify your identity', 'cta': 'Start verification', 'url': 'account:kyc',
+               'text': 'Verification takes about three minutes and lifts your sending limits.'}
+    elif not (twofa and twofa.is_enabled):
+        tip = {'title': 'Protect payments with 2FA', 'cta': 'Turn on 2FA', 'url': 'userauths:two_factor_setup',
+               'text': 'Unusual payments are confirmed with a code from your phone instead of your password.'}
+    elif not card_limits:
+        tip = {'title': 'Link a card for instant top-ups', 'cta': 'Add a card', 'url': 'account:add_credit_card',
+               'text': 'Move money in from your bank card in seconds, within limits you control.'}
+    else:
+        tip = {'title': 'See where your money goes', 'cta': 'Open overview', 'url': 'core:dashboard',
+               'text': 'Your overview groups spending by category and forecasts your balance for the next two weeks.'}
+
     context = {
         'account': account,
         'kyc': kyc,
+        'chart': chart,
+        'stats': stats,
+        'saved_pct': saved_pct, 'spend': spend, 'spend_total': spend_total,
+        'people': people, 'card_limits': card_limits, 'missing': missing, 'tip': tip,
+        'checks_done': done,
         'sent_count': sent.count(), 'sent_total': sum_of(sent),
         'received_count': received.count(), 'received_total': sum_of(received),
         'cards_count': user.credit_cards.filter(status='active').count(),
@@ -175,8 +250,6 @@ def search_account_view(request):
     return render(request, 'account/search_account.html', context)
 
 
-TRANSFER_FEE_RATE = Decimal('0.01')
-
 
 def _flow_stage(request):
     """'details' (first POST), 'confirm' (review accepted) or 'edit' (back from review)."""
@@ -199,7 +272,7 @@ def money_transfer_view(request):
     if stage and stage != 'edit' and form.is_valid():
         receiver_account = form.cleaned_data['receiver_account']
         amount = form.cleaned_data['amount']
-        fee = (amount * TRANSFER_FEE_RATE).quantize(Decimal('0.01'))
+        fee = transfer_fee(amount)
         total = amount + fee
 
         if receiver_account == sender_account:
@@ -207,45 +280,27 @@ def money_transfer_view(request):
         elif sender_account.account_balance < total:
             form.add_error('amount', f'Insufficient balance. You need ${total:,.2f} including the ${fee:,.2f} fee.')
 
-        if not form.errors and stage != 'confirm':
+        if not form.errors:
             context.update({'receiver_account': receiver_account, 'amount': amount, 'fee': fee, 'total': total,
                             'balance_after': sender_account.account_balance - total})
-            return render(request, 'account/transfer_review.html', context)
+            if stage != 'confirm':
+                return render(request, 'account/transfer_review.html', context)
 
-        if not form.errors and stage == 'confirm':
+            description, reference = form.cleaned_data['description'], form.cleaned_data['reference']
+            gate = gate_payment(request, 'transfer', total, counterparty=f'acct:{receiver_account.pk}', payload={
+                'receiver_account_id': receiver_account.pk, 'amount': str(amount),
+                'description': description, 'reference': reference})
+            if gate.action == 'hold':
+                return redirect('risk:payment_held', decision_id=gate.decision.pk)
+            if gate.action == 'challenge':
+                context['risk'] = gate
+                return render(request, 'account/transfer_review.html', context)
             try:
-                with transaction.atomic():
-                    # Lock both rows in a stable order so concurrent transfers can't overspend.
-                    locked = {a.pk: a for a in Account.objects.select_for_update()
-                              .filter(pk__in=[sender_account.pk, receiver_account.pk]).order_by('pk')}
-                    sender, receiver = locked[sender_account.pk], locked[receiver_account.pk]
-                    if sender.account_balance < total:
-                        raise ValueError(f'Insufficient balance. You need ${total:,.2f} including the ${fee:,.2f} fee.')
-
-                    transfer = Transaction.objects.create(
-                        sender=request.user, receiver=receiver.user,
-                        sender_account=sender, receiver_account=receiver,
-                        amount=amount, transaction_fee=fee, total_amount=total,
-                        description=form.cleaned_data['description'],
-                        reference=form.cleaned_data['reference'],
-                        status='completed', completed_at=timezone.now(),
-                    )
-                    sender.account_balance -= total
-                    sender.save(update_fields=['account_balance'])
-                    receiver.account_balance += amount
-                    receiver.save(update_fields=['account_balance'])
-
-                    receiver_name = receiver.user.get_full_name() or receiver.user.email
-                    Notification.objects.create(
-                        user=request.user, notification_type='transaction', title='Money Sent Successfully',
-                        message=f'You sent ${amount:,.2f} to {receiver_name}', transaction=transfer, is_email_sent=True)
-                    Notification.objects.create(
-                        user=receiver.user, notification_type='transaction', title='Money Received',
-                        message=f'You received ${amount:,.2f} from {request.user.get_full_name() or request.user.email}',
-                        transaction=transfer, is_email_sent=True)
-
-                messages.success(request, f'Successfully sent ${amount:,.2f} to {receiver_name}')
-                return redirect('account:transaction_detail', transaction_id=transfer.transaction_id)
+                tx = execute_transfer(request.user, receiver_account.pk, amount, description, reference)
+                link_result(gate, tx)
+                messages.success(request, f'Successfully sent ${amount:,.2f} to '
+                                          f'{receiver_account.user.get_full_name() or receiver_account.user.email}')
+                return redirect('account:transaction_detail', transaction_id=tx.transaction_id)
             except ValueError as e:
                 form.add_error('amount', str(e))
             except Exception as e:
@@ -338,79 +393,34 @@ def settle_payment_request_view(request, request_id):
         messages.error(request, 'This payment request has expired.')
         return redirect('account:payment_requests')
     
+    risk = None
     if request.method == 'POST':
-        try:
-            with transaction.atomic():
-                # Re-read the request and lock both accounts so it can't be paid twice concurrently.
-                payment_request = PaymentRequest.objects.select_for_update().get(pk=payment_request.pk)
-                if payment_request.status != 'pending':
-                    messages.error(request, 'This payment request has already been settled.')
-                    return redirect('account:payment_requests')
-                ids = sorted([payment_request.recipient_account_id, payment_request.requester_account_id])
-                locked = {a.pk: a for a in Account.objects.select_for_update().filter(pk__in=ids).order_by('pk')}
-                recipient_account = locked[payment_request.recipient_account_id]
-                requester_account = locked[payment_request.requester_account_id]
+        risk = gate_payment(request, 'settlement', payment_request.amount,
+                            counterparty=f'acct:{payment_request.requester_account_id}',
+                            payload={'payment_request_id': payment_request.pk})
+        if risk.action == 'hold':
+            return redirect('risk:payment_held', decision_id=risk.decision.pk)
+        if risk.allowed:
+            try:
+                tx = execute_settlement(request.user, payment_request.pk)
+                link_result(risk, tx)
+                messages.success(request, f'Successfully paid ${payment_request.amount:,.2f} to '
+                                          f'{payment_request.requester.get_full_name() or payment_request.requester.email}')
+                return redirect('account:transaction_detail', transaction_id=tx.transaction_id)
+            except ValueError as e:
+                messages.error(request, str(e))
+                return redirect('account:payment_requests')
+            except Exception as e:
+                messages.error(request, f'Settlement failed: {e}')
+                return redirect('account:payment_requests')
 
-                if recipient_account.account_balance < payment_request.amount:
-                    messages.error(request, 'Insufficient balance to settle this request.')
-                    return redirect('account:settle_payment_request', request_id=payment_request.request_id)
-
-                # Create transaction
-                transfer = Transaction.objects.create(
-                    sender=request.user,
-                    receiver=payment_request.requester,
-                    sender_account=recipient_account,
-                    receiver_account=requester_account,
-                    amount=payment_request.amount,
-                    transaction_type='payment_request',
-                    description=payment_request.description,
-                    status='completed'
-                )
-                
-                # Update account balances
-                recipient_account.account_balance -= payment_request.amount
-                recipient_account.save()
-                
-                requester_account.account_balance += payment_request.amount
-                requester_account.save()
-                
-                # Update payment request status
-                payment_request.status = 'paid'
-                payment_request.paid_at = timezone.now()
-                payment_request.save()
-                
-                # Create notifications
-                Notification.objects.create(
-                    user=request.user,
-                    notification_type='transaction',
-                    title='Payment Request Settled',
-                    message=f'You paid ${payment_request.amount:.2f} to {payment_request.requester.get_full_name() or payment_request.requester.email}',
-                    transaction=transfer,
-                    is_email_sent=True
-                )
-                
-                Notification.objects.create(
-                    user=payment_request.requester,
-                    notification_type='transaction',
-                    title='Payment Request Received',
-                    message=f'You received ${payment_request.amount:.2f} from {request.user.get_full_name() or request.user.email}',
-                    transaction=transfer,
-                    is_email_sent=True
-                )
-                
-                messages.success(request, f'Successfully paid ${payment_request.amount:.2f} to {payment_request.requester.get_full_name() or payment_request.requester.email}')
-                return redirect('account:transaction_detail', transaction_id=transfer.transaction_id)
-                
-        except Exception as e:
-            messages.error(request, f'Settlement failed: {str(e)}')
-            return redirect('account:payment_requests')
-    
     account = Account.objects.get(user=request.user)
     context = {
         'payment_request': payment_request,
         'account': account,
         'balance_after': account.account_balance - payment_request.amount,
         'can_pay': account.account_balance >= payment_request.amount,
+        'risk': risk,
     }
     return render(request, 'account/settle_payment_request.html', context)
 
@@ -670,46 +680,21 @@ def _card_move_view(request, direction):
         description = form.cleaned_data.get('description', '')
         balance_after = account.account_balance + amount if is_fund else account.account_balance - amount
 
+        context.update({'card': card, 'amount': amount, 'balance_after': balance_after})
         if stage != 'confirm':
-            context.update({'card': card, 'amount': amount, 'balance_after': balance_after})
             return render(request, 'account/card_move_review.html', context)
 
+        flow = 'card_fund' if is_fund else 'card_withdraw'
+        gate = gate_payment(request, flow, amount, card=card, payload={
+            'card_id': card.pk, 'amount': str(amount), 'description': description})
+        if gate.action == 'hold':
+            return redirect('risk:payment_held', decision_id=gate.decision.pk)
+        if gate.action == 'challenge':
+            context['risk'] = gate
+            return render(request, 'account/card_move_review.html', context)
         try:
-            with transaction.atomic():
-                account = Account.objects.select_for_update().get(pk=account.pk)
-                card = CreditCard.objects.select_for_update().get(pk=card.pk, user=request.user)
-                if is_fund and not card.can_fund(amount):
-                    raise ValueError('This card has reached its daily or monthly funding limit.')
-                if not is_fund and (not card.can_withdraw(amount) or account.account_balance < amount):
-                    raise ValueError('Insufficient balance for this withdrawal.')
-
-                tx = Transaction.objects.create(
-                    transaction_type='card_funding' if is_fund else 'withdrawal',
-                    amount=amount, currency='USD',
-                    sender=request.user, receiver=request.user,
-                    sender_account=account, receiver_account=account,
-                    status='completed',
-                    description=(f'Card funding: {description}' if is_fund else f'Card withdrawal: {description}') if description
-                    else ('Card funding' if is_fund else 'Card withdrawal'),
-                    reference=card.funding_reference if is_fund else f'CARD_WITHDRAW_{card.last_four_digits}',
-                    transaction_fee=Decimal('0.00'), total_amount=amount,
-                    is_verified=True, completed_at=timezone.now(),
-                )
-                account.account_balance += amount if is_fund else -amount
-                account.save(update_fields=['account_balance'])
-                if is_fund:
-                    card.total_funded += amount
-                else:
-                    card.total_withdrawn += amount
-                card.last_used = timezone.now()
-                card.save()
-                Notification.objects.create(
-                    user=request.user, notification_type='transaction',
-                    title='Account Funded' if is_fund else 'Withdrawal Completed',
-                    message=(f'Your account has been funded with ${amount:,.2f} from your {card.card_brand} card ending in {card.last_four_digits}.'
-                             if is_fund else
-                             f'${amount:,.2f} has been withdrawn to your {card.card_brand} card ending in {card.last_four_digits}.'),
-                    transaction=tx)
+            tx = execute_card_move(request.user, card.pk, amount, description, direction)
+            link_result(gate, tx)
             messages.success(request, f'Account funded with ${amount:,.2f}!' if is_fund else f'Withdrawal of ${amount:,.2f} completed!')
             return redirect('account:transaction_detail', transaction_id=tx.transaction_id)
         except ValueError as e:
@@ -763,46 +748,34 @@ def create_international_transfer_view(request):
         currency = form.cleaned_data['currency']
         amount = form.cleaned_data['amount']
         rate = currency.exchange_rate_to_usd          # units of `currency` per 1 USD (EUR 0.85, JPY 110)
-        fee = form.calculate_transfer_fee(amount, currency.code)
-        amount_usd = (amount / rate).quantize(Decimal('0.01'))
-        fee_usd = (fee / rate).quantize(Decimal('0.01'))
-        debit_usd = amount_usd + fee_usd
+        fee, amount_usd, fee_usd, debit_usd = international_quote(amount, currency)
 
         if account.account_balance < debit_usd:
             form.add_error('amount', f'Insufficient balance. This transfer needs ${debit_usd:,.2f} including fees.')
 
-        if not form.errors and stage != 'confirm':
+        if not form.errors:
             context.update({'bank': form.bank, 'currency': currency, 'amount': amount, 'fee': fee, 'rate': rate,
                             'usd_per_unit': (Decimal('1') / rate),
                             'amount_usd': amount_usd, 'fee_usd': fee_usd, 'debit_usd': debit_usd,
                             'balance_after': account.account_balance - debit_usd,
                             'eta': timezone.now() + timedelta(days=3)})
-            return render(request, 'account/international_review.html', context)
+            if stage != 'confirm':
+                return render(request, 'account/international_review.html', context)
 
-        if not form.errors and stage == 'confirm':
+            cd = form.cleaned_data
+            payload = {'currency': currency.code, 'amount': str(amount), 'swift_code': form.bank.swift_code,
+                       **{k: cd.get(k) or '' for k in ('recipient_name', 'recipient_account_number',
+                                                       'recipient_country', 'recipient_city', 'description')}}
+            gate = gate_payment(request, 'international', debit_usd, payload=payload,
+                                counterparty=f"iban:{form.bank.swift_code}:{payload['recipient_account_number']}")
+            if gate.action == 'hold':
+                return redirect('risk:payment_held', decision_id=gate.decision.pk)
+            if gate.action == 'challenge':
+                context['risk'] = gate
+                return render(request, 'account/international_review.html', context)
             try:
-                with transaction.atomic():
-                    locked = Account.objects.select_for_update().get(pk=account.pk)
-                    if locked.account_balance < debit_usd:
-                        raise ValueError(f'Insufficient balance. This transfer needs ${debit_usd:,.2f} including fees.')
-                    transfer = form.save(commit=False)
-                    transfer.sender = request.user
-                    transfer.sender_account = locked
-                    transfer.recipient_bank = form.bank
-                    transfer.recipient_swift_code = form.bank.swift_code
-                    transfer.transfer_fee = fee
-                    transfer.exchange_rate = rate
-                    transfer.amount_in_usd = amount_usd
-                    transfer.total_amount = amount + fee
-                    transfer.estimated_delivery = timezone.now() + timedelta(days=3)
-                    transfer.save()
-
-                    locked.account_balance -= debit_usd
-                    locked.save(update_fields=['account_balance'])
-                    Notification.objects.create(
-                        user=request.user, notification_type='transaction', title='International Transfer Initiated',
-                        message=f'Your transfer of {currency.symbol}{amount:,.2f} to {transfer.recipient_name} has been initiated. '
-                                f'Transfer ID: {transfer.transfer_id}')
+                transfer = execute_international(request.user, payload)
+                link_result(gate, transfer)
                 messages.success(request, f'International transfer initiated! Transfer ID: {transfer.transfer_id}')
                 return redirect('account:international_transfer_detail', transfer_id=transfer.transfer_id)
             except ValueError as e:

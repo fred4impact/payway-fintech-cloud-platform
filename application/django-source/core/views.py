@@ -12,6 +12,7 @@ from django.db import connection
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
 from account.models import Account, CreditCard, InternationalTransfer, KYC, PaymentRequest, Transaction
+from risk.insights import COLOURS as CATEGORY_COLOURS, categorise, forecast_balance, forecast_flag, spending_flags
 
 
 def _database_check():
@@ -169,7 +170,9 @@ def dashboard_view(request):
     outflow = [0.0] * n
     count = [0] * n
     intl_daily = [0.0] * n
-    out_by_type = defaultdict(float)
+    out_by_cat = defaultdict(float)        # current period, by spending category
+    out_by_cat_prev = defaultdict(float)   # previous period
+    current_payments = []                  # (when, amount, counterparty) for "unusually large" flags
     inflow_ids = set(txs.filter(inflow_q).values_list('id', flat=True))
     outflow_ids = set(txs.filter(outflow_q).values_list('id', flat=True))
 
@@ -182,8 +185,14 @@ def dashboard_view(request):
             inflow[i] += amt
         if tx.id in outflow_ids:
             outflow[i] += amt
+            cat = categorise(tx.description, tx.transaction_type)
             if i >= days:
-                out_by_type[tx.get_transaction_type_display()] += amt
+                out_by_cat[cat] += amt
+                if tx.receiver_id != user.id:
+                    current_payments.append((timezone.localtime(tx.created_at), amt,
+                                             tx.receiver.get_full_name() or tx.receiver.username))
+            else:
+                out_by_cat_prev[cat] += amt
         count[i] += 1
     for t in intl:
         i = idx.get(timezone.localtime(t.created_at).date())
@@ -192,8 +201,12 @@ def dashboard_view(request):
         outflow[i] += float(t.amount_in_usd)
         intl_daily[i] += float(t.amount_in_usd)
         count[i] += 1
+        cat = categorise(t.description, 'international')
         if i >= days:
-            out_by_type['International'] += float(t.amount_in_usd)
+            out_by_cat[cat] += float(t.amount_in_usd)
+            current_payments.append((timezone.localtime(t.created_at), float(t.amount_in_usd), t.recipient_name))
+        else:
+            out_by_cat_prev[cat] += float(t.amount_in_usd)
 
     cur = slice(days, n)
     prev = slice(0, days)
@@ -255,12 +268,29 @@ def dashboard_view(request):
         f['width'] = max(f['pct'], 18) if req_total else 18
     to_pay = PaymentRequest.objects.filter(recipient=user, status='pending', is_expired=False)
 
-    # ---- spending mix (donut) ----
+    # ---- spending mix (donut), by category from payment descriptions ----
     palette = ['#047857', '#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444', '#14b8a6']
-    mix_total = sum(out_by_type.values())
-    mix = [{'label': k, 'value': round(v, 2), 'color': palette[i % len(palette)],
+    mix_total = sum(out_by_cat.values())
+    mix = [{'label': k, 'value': round(v, 2), 'color': CATEGORY_COLOURS.get(k, palette[i % len(palette)]),
             'pct': round(v / mix_total * 100, 1) if mix_total else 0}
-           for i, (k, v) in enumerate(sorted(out_by_type.items(), key=lambda kv: -kv[1]))]
+           for i, (k, v) in enumerate(sorted(out_by_cat.items(), key=lambda kv: -kv[1]))]
+
+    # ---- insights: balance forecast and unusual spending ----
+    horizon = 14
+    forecast = forecast_balance(balances, horizon=horizon)
+    period_start = timezone.make_aware(datetime.combine(start_date, time.min))
+    usual = [float(a) for a in Transaction.objects.filter(
+        sender=user, status='completed', transaction_type__in=['transfer', 'payment_request', 'withdrawal'],
+        created_at__gte=period_start - timedelta(days=180), created_at__lt=period_start,
+    ).exclude(transaction_type='transfer', receiver=user).values_list('amount', flat=True)[:500]]
+    insights = [f for f in [forecast_flag(forecast, horizon)] if f]
+    insights += spending_flags(out_by_cat, out_by_cat_prev, days, usual, current_payments)
+    forecast_data = None
+    if forecast:
+        forecast_data = {
+            'labels': [(today + timedelta(days=d)).strftime('%b %d') for d in range(1, horizon + 1)],
+            'values': forecast['values'], 'low': forecast['low'], 'high': forecast['high'],
+        }
 
     # ---- recent activity table ----
     recent = []
@@ -290,7 +320,10 @@ def dashboard_view(request):
             'balance': balances[cur],
             'combo': combo,
             'mix': mix,
+            'forecast': forecast_data,
         },
+        'insights': insights[:5],
+        'forecast': forecast,
         'balance_change': round(balance_now - balance_start, 2),
         'balance_delta': kpis[0]['delta'],
         'balance_delta_abs': kpis[0]['delta_abs'],

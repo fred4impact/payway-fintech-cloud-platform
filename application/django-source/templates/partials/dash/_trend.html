@@ -1,0 +1,1 @@
+{% if t %}<div class="pwx-trend {% if t.good %}is-good{% else %}is-bad{% endif %}"><i class="fas {% if t.dir == 'up' %}fa-arrow-trend-up{% elif t.dir == 'down' %}fa-arrow-trend-down{% else %}fa-minus{% endif %}"></i>{{ t.pct }}% <span>{{ suffix }}</span></div>{% else %}<div class="pwx-trend is-flat"><span>No earlier data to compare</span></div>{% endif %}

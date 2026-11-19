@@ -35,10 +35,11 @@
                 {% else %}
                     <div class="pw-note warn"><i class="fas fa-triangle-exclamation"></i><span>You don't have enough money for this request. <a href="{% url 'account:card_funding' %}">Top up from a card</a> first.</span></div>
                 {% endif %}
+                {% include 'risk/_challenge.html' %}
                 <div class="pw-flow-actions">
                     <a href="{% url 'account:payment_requests' %}" class="btn btn-outline-secondary btn-lg">Not now</a>
                     <span class="pw-spacer"></span>
-                    <form method="post">
+                    <form method="post" id="pw-confirm-form">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-success btn-lg" {% if not can_pay %}disabled{% endif %}><i class="fas fa-lock me-2"></i>Pay ${{ payment_request.amount|floatformat:2|intcomma }}</button>
                     </form>

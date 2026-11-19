@@ -1,0 +1,26 @@
+{# Step-up check shown above a payment's confirm button when the risk engine asks for one. #}
+{% if risk.action == 'challenge' %}
+<div class="pw-risk-challenge" role="alert">
+    <div class="pw-risk-challenge-head">
+        <span class="pw-risk-challenge-icon"><i class="fas fa-shield-halved"></i></span>
+        <div>
+            <strong>Confirm it's you</strong>
+            <p>This payment is different from your usual activity, so we need one more check before it goes out.</p>
+        </div>
+    </div>
+    <label for="risk_code" class="form-label">
+        {% if risk.method == 'totp' %}6-digit code from your authenticator app{% else %}Your PayWay password{% endif %}
+    </label>
+    {% if risk.method == 'totp' %}
+        <input id="risk_code" name="risk_code" form="pw-confirm-form" class="form-control pw-mono{% if risk.error %} is-invalid{% endif %}"
+               inputmode="numeric" autocomplete="one-time-code" maxlength="8" required autofocus>
+    {% else %}
+        <input id="risk_code" name="risk_code" form="pw-confirm-form" type="password" class="form-control{% if risk.error %} is-invalid{% endif %}"
+               autocomplete="current-password" required autofocus>
+    {% endif %}
+    {% if risk.error %}<div class="invalid-feedback d-block">{{ risk.error }}</div>{% endif %}
+    {% if risk.method == 'password' %}
+        <p class="pw-risk-challenge-tip">Turn on <a href="{% url 'userauths:two_factor_setup' %}">two-factor authentication</a> to confirm payments with a code instead.</p>
+    {% endif %}
+</div>
+{% endif %}
