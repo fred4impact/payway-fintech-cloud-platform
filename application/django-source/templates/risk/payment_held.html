@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% block title %}Payment under review — PayWay{% endblock %}
+
+{% block content %}
+<div class="container-xl px-3 px-lg-4 pw-page">
+    <div class="pw-flow-head">
+        <div>
+            {% if decision.review_status == 'pending' %}
+                <h1>We're checking this payment</h1>
+                <p>It looks different from your usual activity, so a member of our team will review it before any money moves.</p>
+            {% elif decision.review_status == 'approved' %}
+                <h1>Payment approved</h1>
+                <p>Our team reviewed this payment and it has gone through.</p>
+            {% elif decision.review_status == 'rejected' %}
+                <h1>Payment declined</h1>
+                <p>Our team reviewed this payment and declined it. No money left your account.</p>
+            {% else %}
+                <h1>Payment not completed</h1>
+                <p>This payment was approved but couldn't be completed, usually because the balance changed. No money left your account.</p>
+            {% endif %}
+        </div>
+    </div>
+    <div class="pw-flow is-narrow">
+        <div class="pw-flow-main">
+            <div class="pw-flow-card">
+                <div class="pw-review-amount">
+                    <div class="k">{{ flow_label }}</div>
+                    <div class="v">${{ decision.amount_usd|floatformat:2|intcomma }}</div>
+                </div>
+                <dl class="pw-review">
+                    <div><dt>Reference</dt><dd class="pw-mono">RISK-{{ decision.pk|stringformat:"06d" }}</dd></div>
+                    <div><dt>Submitted</dt><dd>{{ decision.created_at|date:"M d, Y · H:i" }}</dd></div>
+                    <div><dt>Status</dt><dd>{{ decision.get_review_status_display }}</dd></div>
+                    {% if decision.reviewed_at %}<div><dt>Reviewed</dt><dd>{{ decision.reviewed_at|date:"M d, Y · H:i" }}</dd></div>{% endif %}
+                    {% if decision.result_ref %}<div><dt>Transaction</dt><dd class="pw-mono">{{ decision.result_ref }}</dd></div>{% endif %}
+                </dl>
+                {% if decision.review_status == 'pending' %}
+                <div class="pw-note"><i class="fas fa-clock"></i><span>No money has moved yet. You'll get a notification as soon as the review is done, usually within one business day. If you didn't make this payment, change your password and turn on two-factor authentication.</span></div>
+                {% endif %}
+                <div class="pw-flow-actions">
+                    <a href="{% url 'core:dashboard' %}" class="btn btn-outline-secondary btn-lg">Back to overview</a>
+                    <span class="pw-spacer"></span>
+                    <a href="{% url 'account:notifications' %}" class="btn btn-success btn-lg"><i class="fas fa-bell me-2"></i>Notifications</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -66,6 +66,21 @@
         {% endfor %}
     </div>
 
+    {% if insights %}
+    <!-- Insights -->
+    <section class="pw-panel pw-insights" aria-labelledby="pw-insights-title">
+        <div class="pw-panel-head">
+            <h2 class="pw-panel-title" id="pw-insights-title"><i class="fas fa-wand-magic-sparkles me-2"></i>Insights</h2>
+            <span class="pw-select-chip">Last {{ range_days }} days</span>
+        </div>
+        <ul class="pw-insight-list">
+            {% for f in insights %}
+            <li class="pw-insight tone-{{ f.tone }}"><span class="pw-insight-icon"><i class="fas {{ f.icon }}"></i></span><span>{{ f.text }}</span></li>
+            {% endfor %}
+        </ul>
+    </section>
+    {% endif %}
+
     <!-- Charts row -->
     <div class="pw-grid pw-grid-charts">
         <section class="pw-panel">
@@ -78,7 +93,14 @@
                         {% endif %}
                     </div>
                 </div>
+                {% if forecast %}
+                <div class="pw-legend">
+                    <span><i style="background:#047857"></i>Actual</span>
+                    <span><i class="line dashed"></i>Forecast</span>
+                </div>
+                {% else %}
                 <span class="pw-select-chip">Daily</span>
+                {% endif %}
             </div>
             <div class="pw-chart pw-chart-lg"><canvas id="balanceChart" aria-label="Balance over time chart" role="img"></canvas></div>
         </section>

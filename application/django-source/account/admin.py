@@ -23,11 +23,28 @@ class AccountAdmin(admin.ModelAdmin):
 
 @admin.register(KYC)
 class KYCAdmin(admin.ModelAdmin):
-    list_display = ['user', 'full_name', 'verification_status', 'document_verified', 'face_verified', 'submitted_at']
-    list_filter = ['verification_status', 'document_verified', 'face_verified', 'ai_verification_status', 'submitted_at']
+    list_display = ['user', 'full_name', 'verification_status', 'ai_verification_status', 'verification_confidence', 'document_verified', 'face_verified', 'ai_flagged', 'submitted_at']
+    list_filter = ['verification_status', 'document_verified', 'face_verified', 'ai_verification_status', 'ai_flagged', 'submitted_at']
     search_fields = ['user__email', 'full_name', 'nationality', 'city', 'country']
-    readonly_fields = ['submitted_at', 'verified_at', 'updated_at']
+    readonly_fields = ['submitted_at', 'verified_at', 'updated_at', 'ai_checked_at', 'ai_summary', 'ai_report']
     ordering = ['-submitted_at']
+    actions = ['rerun_ai_checks']
+
+    @admin.display(description='Findings')
+    def ai_summary(self, obj):
+        from django.utils.html import format_html, format_html_join
+        reasons = (obj.ai_report or {}).get('reasons') or []
+        if not reasons:
+            return 'Not checked yet' if not obj.ai_checked_at else 'No issues found'
+        return format_html('<ul style="margin:0;padding-left:1.1em">{}</ul>',
+                           format_html_join('', '<li>{}</li>', ((r,) for r in reasons)))
+
+    @admin.action(description='Re-run automated document and face checks')
+    def rerun_ai_checks(self, request, queryset):
+        from risk.kyc import run_checks
+        for kyc in queryset:
+            run_checks(kyc)
+        self.message_user(request, f'Checks re-run for {queryset.count()} submission(s).')
     
     fieldsets = (
         ('User Information', {
@@ -42,9 +59,9 @@ class KYCAdmin(admin.ModelAdmin):
         ('Verification Status', {
             'fields': ('verification_status', 'document_verified', 'face_verified', 'verification_confidence')
         }),
-        ('AI Integration', {
-            'fields': ('ai_verification_status', 'risk_score', 'ai_flagged'),
-            'classes': ('collapse',)
+        ('Automated checks', {
+            'description': 'Filled in by the automated document and face checks. A person still makes the final decision.',
+            'fields': ('ai_verification_status', 'ai_flagged', 'risk_score', 'ai_checked_at', 'ai_summary', 'ai_report'),
         }),
         ('Timestamps', {
             'fields': ('submitted_at', 'verified_at', 'updated_at'),

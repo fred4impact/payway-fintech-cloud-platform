@@ -58,6 +58,8 @@ RUN apt-get update && apt-get install -y \
     zlib1g \
     curl \
     gettext \
+    tesseract-ocr \
+    tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
@@ -91,6 +93,9 @@ USER appuser
 
 # Collect static files
 RUN python manage.py collectstatic --noinput --settings=payway.settings
+
+# Face detection/recognition models for automated KYC checks (~38 MB, checksum-verified)
+RUN python manage.py download_kyc_models
 
 # Entrypoint runs migrations when RUN_MIGRATIONS=1, then execs CMD
 ENTRYPOINT ["/app/docker/entrypoint.sh"]

@@ -9,6 +9,10 @@
 [![Terraform](https://img.shields.io/badge/IaC-Terraform-purple)](https://www.terraform.io/)
 [![Docker](https://img.shields.io/badge/Containers-Docker-blue)](https://www.docker.com/)
 
+<p align="center">
+  <img src="docs/images/payway-landing.png" alt="PayWay landing page: hero headline &quot;Money that moves at the speed of trust&quot; beside a balance card, recent activity, and fraud-check / payment-sent notifications" width="100%">
+</p>
+
 ## 1. Project Overview
 
 Payway is a FinTech application being developed into an enterprise-style, cloud-hosted platform using Amazon Web Services (AWS).

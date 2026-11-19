@@ -128,3 +128,6 @@ scripts/
 docker/nginx/
 docker/requirements-prod.txt
 application/django-source/db.sqlite3
+
+# KYC face models (downloaded by manage.py download_kyc_models)
+application/django-source/risk/ml_models/*.onnx

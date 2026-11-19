@@ -110,6 +110,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
     volumes:
+      - media_volume:/app/media   # KYC checks read uploaded documents
       - ./logs:/app/logs
     depends_on:
       db:

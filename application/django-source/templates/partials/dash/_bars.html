@@ -1,0 +1,21 @@
+{# Split bar chart: `chart` from core.dash.split_bars #}
+<div class="pwx-bars" style="--top: {{ chart.top_pct }}%; --bottom: {{ chart.bottom_pct }}%">
+    <div class="pwx-bars-axis" aria-hidden="true">
+        <span>{{ chart.peak_up }}</span><span class="zero">0</span><span>{{ chart.peak_down }}</span>
+    </div>
+    <div class="pwx-bars-plot">
+        {% for b in chart.bars %}
+        <div class="pwx-bar-col{% if forloop.counter0 == chart.focus %} is-focus{% endif %}{% if b.today %} is-today{% endif %}" tabindex="0"
+             aria-label="{{ b.date|date:'l, M d' }}: {{ chart.up_label }} {{ b.up_txt }}, {{ chart.down_label }} {{ b.down_txt }}">
+            <div class="pwx-bar-top"><span class="pwx-bar-ghost"></span><span class="pwx-bar up" style="height: {{ b.up_h }}%"></span></div>
+            <div class="pwx-bar-bottom"><span class="pwx-bar-ghost"></span><span class="pwx-bar down" style="height: {{ b.down_h }}%"></span></div>
+            <div class="pwx-bar-tip" role="tooltip">
+                <div class="d">{{ b.date|date:"l, j M Y" }}</div>
+                <div class="r"><i class="up"></i>{{ chart.up_label }}<b>{{ b.up_txt }}</b></div>
+                <div class="r"><i class="down"></i>{{ chart.down_label }}<b>{{ b.down_txt }}</b></div>
+            </div>
+            <span class="pwx-bar-label">{{ b.label }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>

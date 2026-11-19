@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import json
 import re
 from typing import Dict, Any, Optional
@@ -6,6 +7,8 @@ from django.utils import timezone
 from django.http import HttpRequest
 from django.contrib.auth import get_user_model
 from .models import SecurityLog, UserDevice, AccountLockout
+
+logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
@@ -166,48 +169,13 @@ class SecurityService:
 
     @staticmethod
     def assess_risk_score(request: HttpRequest, user: Optional[User] = None) -> int:
-        """Assess risk score for a request (0-100)"""
+        """Risk score for a request (0-100), from the risk engine's sign-in model."""
         try:
-            risk_score = 0
-            ip_address = SecurityService.get_client_ip(request)
-            
-            # Check for suspicious IP patterns
-            if ip_address in ['127.0.0.1', 'localhost']:
-                risk_score += 10  # Local access might be suspicious in production
-            
-            # Check for VPN/Tor exit nodes (basic implementation)
-            if SecurityService.is_suspicious_ip(ip_address):
-                risk_score += 30
-            
-            # Check user agent anomalies
-            user_agent = request.META.get('HTTP_USER_AGENT', '')
-            if not user_agent or len(user_agent) < 10:
-                risk_score += 20  # Missing or suspicious user agent
-            
-            # Check for rapid requests (basic rate limiting check)
-            if SecurityService.is_rapid_request(ip_address):
-                risk_score += 25
-            
-            # Check user-specific risks
-            if user:
-                # Check if user has recent failed logins
-                recent_failures = SecurityLog.objects.filter(
-                    user=user,
-                    event_type='login_failed',
-                    timestamp__gte=timezone.now() - timezone.timedelta(hours=1)
-                ).count()
-                
-                if recent_failures > 0:
-                    risk_score += recent_failures * 10
-                
-                # Check if user is logging in from new location
-                if SecurityService.is_new_location(user, ip_address):
-                    risk_score += 15
-            
-            return min(risk_score, 100)  # Cap at 100
-        except Exception as e:
-            print(f"Risk assessment failed: {e}")
-            return 0  # Return safe default
+            from risk.signin import assess
+            return assess(request, user).score
+        except Exception:
+            logger.exception('Risk assessment failed')
+            return 0
 
     @staticmethod
     def is_suspicious_ip(ip_address: str) -> bool:
@@ -356,9 +324,11 @@ class SecurityService:
             # Don't let security failures break the login process
 
     @staticmethod
-    def handle_successful_login(request: HttpRequest, user: User) -> None:
-        """Handle successful login"""
+    def handle_successful_login(request: HttpRequest, user: User, risk_score: Optional[int] = None) -> None:
+        """Handle successful login. Pass `risk_score` when it was assessed before sign-in."""
         try:
+            if risk_score is None:
+                risk_score = SecurityService.assess_risk_score(request, user)
             # Reset failed login attempts
             try:
                 user.reset_failed_login()
@@ -388,7 +358,7 @@ class SecurityService:
                     'device_name': device.device_name,
                     'location': device.location
                 },
-                risk_score=SecurityService.assess_risk_score(request, user)
+                risk_score=risk_score
             )
         except Exception as e:
             print(f"Successful login handling failed: {e}")
@@ -415,33 +385,28 @@ class SecurityService:
                 is_active=True
             ).order_by('-locked_at')
             
-            # Calculate security score
-            security_score = 100
-            
-            # Deduct points for various risk factors
-            if user.failed_login_attempts > 0:
-                security_score -= min(user.failed_login_attempts * 5, 30)
-            
+            # Security score: earned from protections in place, minus recent warning signs.
+            twofa = getattr(user, 'twofactorauth', None) if hasattr(user, 'twofactorauth') else None
+            kyc = getattr(user, 'kyc', None) if hasattr(user, 'kyc') else None
+            device_count = active_devices.count()
+            security_score = 40 if user.has_usable_password() else 0
+            if twofa is not None and twofa.is_enabled:
+                security_score += 30
+            if kyc is not None and kyc.verification_status == 'approved':
+                security_score += 15
+            if device_count and not active_devices.filter(is_trusted=False).exists():
+                security_score += 15
+            security_score -= min(user.failed_login_attempts * 5, 20)
             if user.is_account_locked():
-                security_score -= 50
-            
-            # Check for 2FA
-            try:
-                if user.twofactorauth.is_enabled:
-                    security_score += 20
-            except:
-                pass  # No 2FA configured
-            
-            # Check for suspicious recent activity
+                security_score -= 40
             suspicious_events = SecurityLog.objects.filter(
                 user=user,
                 risk_score__gte=50,
                 timestamp__gte=timezone.now() - timezone.timedelta(days=7)
             ).count()
-            
-            security_score -= min(suspicious_events * 10, 30)
-            security_score = max(security_score, 0)  # Don't go below 0
-            
+            security_score -= min(suspicious_events * 5, 20)
+            security_score = max(0, min(security_score, 100))
+
             return {
                 'security_score': security_score,
                 'recent_events': recent_events,

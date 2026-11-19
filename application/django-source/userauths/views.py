@@ -17,6 +17,8 @@ from .forms import (
 from .services import SecurityService
 from .models import User, TwoFactorAuth, UserDevice, SecurityLog, AccountLockout
 from .forms import generate_totp_secret, generate_totp_qr_code, verify_totp_code, generate_backup_codes
+from account.models import Notification
+from risk import signin as risk_signin
 import json
 
 logger = logging.getLogger(__name__)
@@ -116,39 +118,60 @@ def login_view(request):
                     messages.error(request, 'Account is temporarily locked due to multiple failed login attempts. Please try again later.')
                     return render(request, 'userauths/login.html', {'form': form})
                 
-                # Check if 2FA is required
-                if hasattr(user, 'twofactorauth') and user.twofactorauth.is_enabled:
-                    twofa = user.twofactorauth
-                    # Store user ID in session for 2FA verification
+                # Score the sign-in before the device is recorded (a new device must still look new).
+                signin = risk_signin.assess(request, user, email)
+                twofa = TwoFactorAuth.objects.filter(user=user, is_enabled=True).first()
+
+                if twofa is not None:
+                    skip = (settings.RISK.get('SKIP_2FA_ON_TRUSTED_DEVICE', False)
+                            and signin.device_trusted and not signin.unusual)
+                    if skip:
+                        risk_signin.record(request, user, signin, 'allow', ['Trusted device: 2FA code skipped'])
+                        return _complete_login(request, user, signin.score)
+
+                    risk_signin.record(request, user, signin, 'challenge', ['2FA code required'])
                     request.session['2fa_user_id'] = user.id
                     request.session['2fa_method'] = twofa.method
-                    
-                    # Log 2FA required event
                     try:
                         SecurityService.log_security_event(
-                            user=user,
-                            event_type='2fa_required',
-                            request=request,
-                            details={'method': twofa.method},
-                            risk_score=SecurityService.assess_risk_score(request, user)
-                        )
-                    except Exception as e:
-                        print(f"Security logging failed: {e}")
-                    
+                            user=user, event_type='2fa_required', request=request,
+                            details={'method': twofa.method}, risk_score=signin.score)
+                    except Exception:
+                        logger.exception('Security logging failed')
                     return redirect('userauths:two_factor_verify')
-                
-                # Successful login without 2FA
-                login(request, user)
-                
-                # Handle successful login with security service
-                try:
-                    SecurityService.handle_successful_login(request, user)
-                except Exception as e:
-                    # Log the error but don't fail login
-                    print(f"Security service failed: {e}")
-                
-                messages.success(request, f'Welcome back, {user.username}!')
-                return redirect('core:dashboard')
+
+                if signin.blocked:
+                    # No second factor to fall back on, and the sign-in looks like an attack.
+                    risk_signin.record(request, user, signin, 'block')
+                    try:
+                        SecurityService.log_security_event(
+                            user=user, event_type='login_blocked', request=request,
+                            details={'reason': 'High sign-in risk', 'signals': signin.reasons}, risk_score=signin.score)
+                    except Exception:
+                        logger.exception('Security logging failed')
+                    Notification.objects.create(
+                        user=user, notification_type='security', title='Sign-in blocked',
+                        message='We blocked a sign-in to your account because it looked unusual. If it was you, '
+                                'try again later from a device you have used before. If it was not, change your password.')
+                    messages.error(request, "We couldn't sign you in because this attempt looks unusual. "
+                                            "Try again later from a device you've used before, or contact support.")
+                    return render(request, 'userauths/login.html', {'form': form})
+
+                if signin.unusual:
+                    risk_signin.record(request, user, signin, 'allow', ['Flagged to the user'])
+                    try:
+                        SecurityService.log_security_event(
+                            user=user, event_type='suspicious_activity', request=request,
+                            details={'reason': 'Unusual sign-in', 'signals': signin.reasons}, risk_score=signin.score)
+                    except Exception:
+                        logger.exception('Security logging failed')
+                    Notification.objects.create(
+                        user=user, notification_type='security', title='Unusual sign-in',
+                        message='Your account was just signed in to from a device or place we have not seen before. '
+                                'If this was not you, change your password and turn on two-factor authentication.')
+                else:
+                    risk_signin.record(request, user, signin, 'allow')
+                return _complete_login(request, user, signin.score)
             else:
                 # Failed login
                 try:
@@ -174,6 +197,16 @@ def login_view(request):
         form = UserLoginForm()
     
     return render(request, 'userauths/login.html', {'form': form})
+
+
+def _complete_login(request, user, risk_score):
+    login(request, user)
+    try:
+        SecurityService.handle_successful_login(request, user, risk_score=risk_score)
+    except Exception:
+        logger.exception('Security service failed')
+    messages.success(request, f'Welcome back, {user.username}!')
+    return redirect('core:dashboard')
 
 
 def two_factor_verify_view(request):
@@ -349,65 +382,142 @@ def logout_view(request):
     return redirect('userauths:login')
 
 
+SIGNIN_EVENTS = ['login_success']
+FAILED_EVENTS = ['login_failed', '2fa_failed', '2fa_backup_failed', 'login_blocked']
+EVENT_GROUPS = [
+    ('Sign-ins', ['login_success', 'logout']),
+    ('2FA codes', ['2fa_used', '2fa_required', '2fa_backup_used']),
+    ('Failed attempts', FAILED_EVENTS + ['login_validation_failed']),
+    ('Devices', ['device_added', 'device_removed', 'device_trusted', 'device_untrusted']),
+    ('Settings', ['password_change', '2fa_enabled', '2fa_disabled', '2fa_setup', '2fa_backup_codes_regenerated',
+                  'security_settings_changed']),
+]
+SEG_PALETTE = ['#a6d16b', '#c6e48b', '#f3b47c', '#f1ec7c', '#7cb342', '#f7c99f']
+
+
 @login_required
 def security_dashboard(request):
-    """Security dashboard for users to view their security status"""
-    from .services import SecurityService
-    
-    # Get user security summary
-    try:
-        security_summary = SecurityService.get_user_security_summary(request.user)
-    except Exception as e:
-        print(f"Security service failed: {e}")
-        security_summary = {}
-    
-    from datetime import timedelta
+    """Security overview: score, sign-in activity, protection, recent events."""
+    from collections import Counter
+    from datetime import datetime, time, timedelta
+    from django.db.models import Q
+    from core.dash import last_days, segments, split_bars, trend
+    from risk.models import RiskDecision
+
+    user = request.user
     now = timezone.now()
-    logs = SecurityLog.objects.filter(user=request.user)
-    week_start = timezone.localdate() - timedelta(days=6)
-    week = []
-    for i in range(7):
-        day = week_start + timedelta(days=i)
-        n = logs.filter(event_type__in=['login_success', '2fa_used'], timestamp__date=day).count()
-        week.append({'label': day.strftime('%a')[0], 'date': day, 'count': n, 'today': day == timezone.localdate()})
-    peak = max([d['count'] for d in week] + [1])
-    for d in week:
-        d['height'] = 22 if not d['count'] else max(30, round(d['count'] / peak * 100))
+    try:
+        summary = SecurityService.get_user_security_summary(user)
+    except Exception:
+        logger.exception('Security summary failed')
+        summary = {}
+    score = int(summary.get('security_score', 0) or 0)
 
-    twofa = TwoFactorAuth.objects.filter(user=request.user).first()
-    devices = UserDevice.objects.filter(user=request.user, is_active=True).order_by('-last_used')
-    score = int(security_summary.get('security_score', 0) or 0)
-    failed_30 = logs.filter(event_type__in=['login_failed', '2fa_failed'], timestamp__gte=now - timedelta(days=30)).count()
-    events_30 = logs.filter(timestamp__gte=now - timedelta(days=30)).count()
+    mine = SecurityLog.objects.filter(Q(user=user) | Q(user__isnull=True, details__email=user.email))
+    days = last_days(7)
+    since = timezone.make_aware(datetime.combine(days[0], time.min))
+    ok_by_day, bad_by_day = Counter(), Counter()
+    for ts, ev in mine.filter(timestamp__gte=since, event_type__in=SIGNIN_EVENTS + FAILED_EVENTS) \
+            .values_list('timestamp', 'event_type'):
+        (ok_by_day if ev in SIGNIN_EVENTS else bad_by_day)[timezone.localtime(ts).date()] += 1
+    chart = split_bars(days, ok_by_day, bad_by_day, 'Sign-ins', 'Failed')
+
+    def count(events, start, end=None):
+        qs = mine.filter(event_type__in=events, timestamp__gte=start)
+        return qs.filter(timestamp__lt=end).count() if end else qs.count()
+
+    week, fortnight, month = now - timedelta(days=7), now - timedelta(days=14), now - timedelta(days=30)
+    signins_7, signins_prev = count(SIGNIN_EVENTS, week), count(SIGNIN_EVENTS, fortnight, week)
+    failed_7, failed_prev = count(FAILED_EVENTS, week), count(FAILED_EVENTS, fortnight, week)
+    checked = RiskDecision.objects.filter(user=user, kind='payment', action__in=['challenge', 'hold'])
+    checked_30 = checked.filter(created_at__gte=month).count()
+    checked_prev = checked.filter(created_at__gte=now - timedelta(days=60), created_at__lt=month).count()
+
+    twofa = TwoFactorAuth.objects.filter(user=user).first()
+    twofa_on = bool(twofa and twofa.is_enabled)
+    devices = UserDevice.objects.filter(user=user, is_active=True).order_by('-last_used')
+    device_count, trusted_count = devices.count(), devices.filter(is_trusted=True).count()
+    kyc_status = getattr(getattr(user, 'kyc', None), 'verification_status', '')
+
+    # event mix, last 30 days
+    month_events = Counter(mine.filter(timestamp__gte=month).values_list('event_type', flat=True))
+    grouped = [(label, sum(month_events.pop(e, 0) for e in evs)) for label, evs in EVENT_GROUPS]
+    grouped.append(('Other', sum(month_events.values())))
+    mix, mix_total = segments([g for g in grouped if g[1]], SEG_PALETTE)
+
     checks = [
-        {'label': 'Strong password set', 'done': request.user.has_usable_password()},
-        {'label': 'Two-factor authentication', 'done': bool(twofa and twofa.is_enabled)},
-        {'label': 'Identity verified (KYC)', 'done': getattr(getattr(request.user, 'kyc', None), 'verification_status', '') == 'approved'},
-        {'label': 'Every device trusted', 'done': devices.exists() and not devices.filter(is_trusted=False).exists()},
+        {'label': 'Password set', 'done': user.has_usable_password()},
+        {'label': 'Two-factor authentication', 'done': twofa_on},
+        {'label': 'Identity verified', 'done': kyc_status == 'approved'},
+        {'label': 'Every device trusted', 'done': device_count > 0 and trusted_count == device_count},
     ]
-    done = sum(c['done'] for c in checks)
-
-    context = {
-        'security_summary': security_summary,
-        'user': request.user,
-        'score': score,
-        'score_label': 'Excellent' if score >= 80 else 'Good' if score >= 50 else 'At risk',
-        'week': week,
-        'week_logins': sum(d['count'] for d in week),
-        'twofa': twofa,
-        'devices': devices[:5],
-        'device_count': devices.count(),
-        'trusted_count': devices.filter(is_trusted=True).count(),
-        'failed_30': failed_30,
-        'events_30': events_30,
-        'recent_logs': logs.order_by('-timestamp')[:6],
-        'checks': checks,
-        'checks_done': done,
-        'checks_pct': round(done / len(checks) * 100),
-        'checks_pending': 100 - round(done / len(checks) * 100),
-        'checks_value': f"{round(done / len(checks) * 100)}%",
+    checks_pct = round(sum(c['done'] for c in checks) / len(checks) * 100)
+    filled = sum(bool(x) for x in (user.email, user.phone_number, user.date_of_birth, user.first_name))
+    goals = {
+        'essentials': [
+            {'label': 'Two-factor', 'icon': 'fa-key', 'pct': 100 if twofa_on else 0,
+             'value': 'On' if twofa_on else 'Off', 'url': 'userauths:two_factor_disable' if twofa_on else 'userauths:two_factor_setup',
+             'note': 'Codes required at sign-in' if twofa_on else 'Turn on to protect sign-ins and payments'},
+            {'label': 'Trusted devices', 'icon': 'fa-laptop', 'url': 'userauths:device_management',
+             'pct': round(trusted_count / device_count * 100) if device_count else 0,
+             'value': f'{trusted_count} / {device_count}',
+             'note': 'All devices reviewed' if device_count and trusted_count == device_count else 'Review devices you don\'t recognise'},
+        ],
+        'recommended': [
+            {'label': 'Identity check', 'icon': 'fa-id-card', 'url': 'account:kyc',
+             'pct': {'approved': 100, 'pending': 50}.get(kyc_status, 0),
+             'value': (kyc_status or 'not started').capitalize(),
+             'note': 'Unlocks higher limits' if kyc_status != 'approved' else 'Verified'},
+            {'label': 'Profile details', 'icon': 'fa-user', 'url': 'account:account_info',
+             'pct': round(filled / 4 * 100), 'value': f'{filled} / 4',
+             'note': 'Used to recover your account'},
+        ],
     }
 
+    if not twofa_on:
+        tip = {'title': 'Add a second lock to your account',
+               'text': 'Two-factor codes stop someone who has your password. Unusual payments can then be confirmed with a code instead of your password.',
+               'url': 'userauths:two_factor_setup', 'cta': 'Turn on 2FA'}
+    elif trusted_count < device_count:
+        tip = {'title': 'Review your devices',
+               'text': f'{device_count - trusted_count} signed-in device(s) aren\'t marked as trusted. Remove any you don\'t recognise.',
+               'url': 'userauths:device_management', 'cta': 'Review devices'}
+    elif kyc_status != 'approved':
+        tip = {'title': 'Finish verifying your identity',
+               'text': 'A verified identity makes account recovery faster and lifts your limits.',
+               'url': 'account:kyc', 'cta': 'Verify now'}
+    else:
+        tip = {'title': 'You\'re well protected',
+               'text': 'Skim your security log once a month and sign out of devices you no longer use.',
+               'url': 'userauths:security_logs', 'cta': 'Open security log'}
+
+    history = []
+    for log in mine.order_by('-timestamp')[:8]:
+        t = log.event_type
+        bad = t in FAILED_EVENTS or t in ('suspicious_activity', 'account_locked')
+        tone = 'bad' if bad and log.risk_score >= 70 else 'warn' if bad or log.risk_score >= 40 else \
+            'ok' if t in SIGNIN_EVENTS + ['2fa_used', '2fa_enabled', 'device_trusted'] else 'info'
+        icon = ('fa-triangle-exclamation' if bad else 'fa-right-to-bracket' if 'login' in t else 'fa-key' if '2fa' in t
+                else 'fa-laptop' if 'device' in t else 'fa-lock' if 'password' in t else 'fa-shield-halved')
+        history.append({'log': log, 'tone': tone, 'icon': icon,
+                        'status': 'High risk' if log.risk_score >= 70 else 'Review' if log.risk_score >= 40 else 'Normal'})
+
+    context = {
+        'score': score,
+        'score_label': 'Excellent' if score >= 80 else 'Good' if score >= 50 else 'At risk',
+        'chart': chart,
+        'stats': [
+            {'label': 'Sign-ins', 'value': signins_7, 'trend': trend(signins_7, signins_prev, 'up'), 'suffix': 'from last week'},
+            {'label': 'Failed attempts', 'value': failed_7, 'trend': trend(failed_7, failed_prev, 'down'), 'suffix': 'from last week'},
+            {'label': 'Payments checked', 'value': checked_30, 'trend': trend(checked_30, checked_prev, 'down'), 'suffix': 'from last month'},
+        ],
+        'twofa': twofa, 'twofa_on': twofa_on,
+        'devices': devices[:6], 'device_count': device_count, 'trusted_count': trusted_count,
+        'mix': mix, 'mix_total': mix_total,
+        'checks': checks, 'checks_pct': checks_pct, 'missing': [c['label'] for c in checks if not c['done']], 'checks_done': sum(c['done'] for c in checks),
+        'goals': goals, 'tip': tip, 'history': history,
+        'last_login': user.last_login,
+    }
     return render(request, 'userauths/security_dashboard.html', context)
 
 

@@ -624,30 +624,9 @@ class InternationalTransferForm(forms.ModelForm):
         return account_number
     
     def calculate_transfer_fee(self, amount, currency_code):
-        """Calculate international transfer fee based on amount and currency"""
-        # Static fee structure for MVP
-        fee_structure = {
-            'USD': {'percentage': 0.02, 'min_fee': 5.00, 'max_fee': 50.00},
-            'EUR': {'percentage': 0.025, 'min_fee': 5.00, 'max_fee': 60.00},
-            'GBP': {'percentage': 0.03, 'min_fee': 5.00, 'max_fee': 75.00},
-            'JPY': {'percentage': 0.025, 'min_fee': 500.00, 'max_fee': 5000.00},
-            'CAD': {'percentage': 0.025, 'min_fee': 6.00, 'max_fee': 60.00},
-            'AUD': {'percentage': 0.025, 'min_fee': 6.00, 'max_fee': 65.00},
-            'CHF': {'percentage': 0.025, 'min_fee': 5.00, 'max_fee': 55.00},
-            'SGD': {'percentage': 0.025, 'min_fee': 6.00, 'max_fee': 65.00},
-            'HKD': {'percentage': 0.025, 'min_fee': 40.00, 'max_fee': 400.00},
-            'NZD': {'percentage': 0.025, 'min_fee': 7.00, 'max_fee': 70.00},
-        }
-        
-        # Default to USD structure if currency not found
-        structure = fee_structure.get(currency_code, fee_structure['USD'])
-        
-        # Calculate percentage fee (all Decimal: mixing float and Decimal raises TypeError)
-        percentage_fee = Decimal(amount) * Decimal(str(structure['percentage']))
-        min_fee, max_fee = Decimal(str(structure['min_fee'])), Decimal(str(structure['max_fee']))
-
-        # Apply min/max limits
-        return max(min_fee, min(percentage_fee, max_fee)).quantize(Decimal('0.01'))
+        """International transfer fee in the transfer's currency (see account.payments)."""
+        from .payments import international_fee
+        return international_fee(amount, currency_code)
 
 
 class SwiftCodeSearchForm(forms.Form):
